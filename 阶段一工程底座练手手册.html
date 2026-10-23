@@ -1,0 +1,696 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>阶段一 · 工程底座练手手册</title>
+<style>
+  :root{
+    --bg:#f6f7f9; --card:#ffffff; --ink:#1a1d23; --muted:#5b6472; --line:#e2e5ea;
+    --accent:#2563eb; --accent-soft:#eef4ff; --warn:#b45309; --warn-soft:#fff7ed;
+    --ok:#15803d; --ok-soft:#f0fdf4; --bad:#b91c1c; --bad-soft:#fef2f2;
+    --code:#0f172a;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Microsoft YaHei","PingFang SC",-apple-system,"Segoe UI",sans-serif;
+    font-size:14.5px;line-height:1.75}
+  .wrap{max-width:1000px;margin:0 auto;padding:32px 24px 80px}
+
+  header.hd{background:linear-gradient(135deg,#1e3a8a,#2563eb);color:#fff;
+    border-radius:14px;padding:28px 30px;margin-bottom:26px}
+  header.hd h1{margin:0 0 8px;font-size:26px;letter-spacing:.5px}
+  header.hd p{margin:0;opacity:.92;font-size:14.5px}
+  .chips{margin-top:16px;display:flex;flex-wrap:wrap;gap:8px}
+  .chip{background:rgba(255,255,255,.16);border:1px solid rgba(255,255,255,.25);
+    border-radius:999px;padding:4px 13px;font-size:12.5px}
+
+  .progress{display:flex;align-items:center;gap:14px;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;padding:14px 18px;margin-bottom:24px}
+  .progress b{font-size:13px;color:var(--muted);font-weight:600}
+  .bar{flex:1;height:8px;background:var(--line);border-radius:99px;overflow:hidden}
+  .bar i{display:block;height:100%;width:0;background:var(--accent);transition:width .3s}
+  .pct{font-variant-numeric:tabular-nums;font-weight:700;color:var(--accent);font-size:14px}
+  .reset{border:1px solid var(--line);background:#fff;border-radius:8px;
+    padding:5px 12px;font-size:12.5px;cursor:pointer;color:var(--muted)}
+  .reset:hover{border-color:var(--accent);color:var(--accent)}
+
+  section{background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:22px 26px;margin-bottom:20px}
+  h2{margin:0 0 6px;font-size:19px;display:flex;align-items:center;gap:10px}
+  h2 .no{background:var(--accent);color:#fff;width:26px;height:26px;border-radius:8px;
+    display:inline-flex;align-items:center;justify-content:center;font-size:13px;flex:none}
+  h3{margin:22px 0 8px;font-size:15.5px;color:#111827}
+  h3:first-of-type{margin-top:14px}
+  .lead{color:var(--muted);margin:0 0 4px;font-size:14px}
+  p{margin:8px 0}
+
+  table{width:100%;border-collapse:collapse;margin:12px 0;font-size:13.5px}
+  th{background:#f1f4f9;text-align:left;padding:9px 12px;border:1px solid var(--line);
+    font-weight:600;color:#374151}
+  td{padding:9px 12px;border:1px solid var(--line);vertical-align:top}
+  tbody tr:nth-child(even){background:#fafbfc}
+
+  code{font-family:"Cascadia Code",Consolas,Monaco,monospace;font-size:12.8px;
+    background:#f1f4f9;padding:1px 5px;border-radius:4px;color:#c026a8}
+  pre{background:var(--code);color:#e5e7eb;padding:14px 16px;border-radius:9px;
+    overflow-x:auto;font-size:12.6px;line-height:1.65;margin:12px 0}
+  pre code{background:none;color:inherit;padding:0}
+  .cm{color:#8b98ad}.kw{color:#93c5fd}.st{color:#a5e8c4}.fn{color:#fcd34d}
+
+  .note{border-left:3px solid var(--accent);background:var(--accent-soft);
+    padding:11px 15px;border-radius:0 8px 8px 0;margin:12px 0;font-size:13.5px}
+  .warn{border-left:3px solid var(--warn);background:var(--warn-soft);
+    padding:11px 15px;border-radius:0 8px 8px 0;margin:12px 0;font-size:13.5px}
+  .bad{border-left:3px solid var(--bad);background:var(--bad-soft);
+    padding:11px 15px;border-radius:0 8px 8px 0;margin:12px 0;font-size:13.5px}
+  .good{border-left:3px solid var(--ok);background:var(--ok-soft);
+    padding:11px 15px;border-radius:0 8px 8px 0;margin:12px 0;font-size:13.5px}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin:14px 0}
+  .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin:14px 0}
+  .box{border:1px solid var(--line);border-radius:10px;padding:14px 16px;background:#fcfdfe}
+  .box h4{margin:0 0 6px;font-size:14px}
+  .box p{margin:0;font-size:13px;color:var(--muted)}
+
+  .check{display:flex;gap:10px;align-items:flex-start;padding:8px 0;
+    border-bottom:1px dashed var(--line);font-size:13.5px;cursor:pointer}
+  .check:last-child{border-bottom:none}
+  .check input{margin-top:4px;width:15px;height:15px;accent-color:var(--accent);cursor:pointer;flex:none}
+  .check span{user-select:none}
+  .check.done span{color:var(--muted);text-decoration:line-through}
+
+  .svgwrap{background:#fbfcfe;border:1px solid var(--line);border-radius:10px;
+    padding:14px;margin:14px 0;text-align:center}
+  .svgwrap svg{max-width:100%;height:auto}
+
+  .day{border:1px solid var(--line);border-radius:10px;padding:14px 18px;margin-bottom:12px;background:#fcfdfe}
+  .day-h{display:flex;align-items:baseline;gap:10px;margin-bottom:6px}
+  .day-h b{font-size:14.5px;color:var(--accent)}
+  .day-h em{font-style:normal;font-size:12.5px;color:var(--muted)}
+  .day ul{margin:6px 0 0;padding-left:18px;font-size:13.5px}
+  .day li{margin:3px 0}
+
+  .qa{border:1px solid var(--line);border-radius:9px;margin:10px 0;overflow:hidden}
+  .q{background:#f1f4f9;padding:10px 15px;font-weight:600;font-size:13.8px}
+  .a{padding:11px 15px;font-size:13.5px;color:#374151}
+
+  footer{text-align:center;color:var(--muted);font-size:12.5px;margin-top:30px}
+
+  @media print{
+    body{background:#fff;font-size:11.4pt}
+    .wrap{max-width:none;padding:0}
+    header.hd{background:#1e3a8a !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    section{break-inside:avoid;page-break-inside:avoid;border:none;padding:0;margin:0 0 16pt}
+    .progress,.reset{display:none}
+    pre{background:#f4f5f7;color:#111;border:1px solid #ddd}
+    .note,.warn,.bad,.good{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    th{background:#eef1f5 !important}
+  }
+  @media print{ @page{ margin:14mm } }
+  @media(max-width:760px){.grid2,.grid3{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hd">
+  <h1>阶段一 · 工程底座练手手册</h1>
+  <p>不联网、不装 Docker、不依赖公网靶场。79 条用例全部跑在一个内置本地 REST 靶机上。<br>
+     练的是「别人的仓库 clone 下来一条命令能跑、跑完有报告、报告能拦住合入」这三件事。</p>
+  <div class="chips">
+    <span class="chip">pytest 工程化</span>
+    <span class="chip">鉴权与数据流转</span>
+    <span class="chip">schema / 契约</span>
+    <span class="chip">CI 三档门禁</span>
+    <span class="chip">实测 79 passed</span>
+  </div>
+</header>
+
+<div class="progress">
+  <b>完成度</b>
+  <div class="bar"><i id="bar"></i></div>
+  <span class="pct" id="pct">0%</span>
+  <button class="reset" onclick="resetAll()">清空</button>
+</div>
+
+<!-- ============================ 0 ============================ -->
+<section>
+  <h2><span class="no">0</span>怎么用这个仓库</h2>
+  <p class="lead">目录位置：<code>AI测试/api-lab</code></p>
+
+<pre><code><span class="fn">pip</span> install -e <span class="st">".[dev]"</span>      <span class="cm"># pytest / xdist / html / rerunfailures / pydantic / jsonschema</span>
+<span class="fn">pytest</span> -q                        <span class="cm"># 79 passed, 2 rerun  — 约 3 秒</span></code></pre>
+
+  <div class="good">
+    装不上也能练：<code>pyproject.toml</code> 里配了 <code>pythonpath = ["src"]</code>，
+    只要 <code>pytest</code> 和 <code>requests</code> 可用就能跑全部用例；
+    pydantic / jsonschema 相关的用例会自动报错提示缺失，补装即可。
+  </div>
+
+  <h3>五条最值得先跑的命令</h3>
+  <table>
+    <thead><tr><th style="width:46%">命令</th><th>看什么</th></tr></thead>
+    <tbody>
+      <tr><td><code>pytest -q</code></td><td>全量回归，应当是绿的</td></tr>
+      <tr><td><code>pytest -m "smoke and not destructive"</code></td><td>PR 门禁口径：9 条，0.9 秒</td></tr>
+      <tr><td><code>pytest -m scope -v</code></td><td>fixture 作用域的可观测证据</td></tr>
+      <tr><td><code>pytest -m contract --schema-drift</code></td><td><b>应当变红 4 条</b>：验证契约测试真的会拦</td></tr>
+      <tr><td><code>pytest -q -n auto --dist loadscope</code></td><td>并行：79 条在 6.0 秒（比单进程慢，见下）</td></tr>
+    </tbody>
+  </table>
+
+  <div class="warn">
+    <b>实测数据：单进程 2.78 秒，4 worker 并行 6.05 秒。</b>
+    并行反而慢——因为每个 worker 都要独立起靶机、独立导入。
+    这说明一个常被忽略的事实：<b>并行有固定开销，用例数少于一两百条时不要开</b>。
+    面试里讲出这一句，比说「我用了 xdist」有价值得多。
+  </div>
+
+  <h3>目录速览</h3>
+  <table>
+    <thead><tr><th style="width:30%">文件</th><th>一句话职责</th></tr></thead>
+    <tbody>
+      <tr><td><code>conftest.py</code></td><td>根层：命令行选项、靶机、环境守卫、报告定制</td></tr>
+      <tr><td><code>src/apilab/fake_server.py</code></td><td>本地 REST 靶机（标准库实现，含鉴权/分页/间歇故障/字段漂移）</td></tr>
+      <tr><td><code>src/apilab/client.py</code></td><td>被测系统客户端：令牌续期、重试、错误归一化</td></tr>
+      <tr><td><code>tests/conftest.py</code></td><td>业务层 fixture：api / admin_api / book_factory / 数据驱动</td></tr>
+      <tr><td><code>tests/api/</code></td><td>接口用例：鉴权、CRUD、分页、权限、参数化、作用域、不稳定、契约</td></tr>
+      <tr><td><code>tests/contract/</code></td><td>以 <code>/openapi.json</code> 为源的契约测试</td></tr>
+      <tr><td><code>tests/unit/</code></td><td>纯函数，毫秒级，不碰网络</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ 1 ============================ -->
+<section>
+  <h2><span class="no">1</span>pytest 工程化能力</h2>
+
+  <h3>1.1 fixture 作用域：怎么选，不是背的</h3>
+  <table>
+    <thead><tr><th style="width:12%">作用域</th><th style="width:30%">用在哪</th><th style="width:26%">本仓库实例</th><th>判断标准</th></tr></thead>
+    <tbody>
+      <tr><td><code>session</code></td><td>建连接池、登录一次</td><td><code>lab_server</code>、<code>api</code></td><td>构造贵 + 无状态污染</td></tr>
+      <tr><td><code>module</code></td><td>本文件共用的只读数据</td><td><code>spec</code>（OpenAPI 文档）</td><td>解析一次就够</td></tr>
+      <tr><td><code>function</code></td><td>会写库、要干净状态</td><td><code>book_factory</code>、<code>clean_library</code></td><td>用例会改数据</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    <code>tests/api/test_scope_demo.py</code> 用<b>构造计数器</b>把三种作用域跑给你看。
+    为什么不用 <code>id()</code>：CPython 会复用刚释放的内存地址，
+    <code>id</code> 相同不代表同一个对象，拿它做断言会写出时红时绿的假证据。
+  </div>
+
+  <h3>1.2 conftest 三层：判断规则只有一句</h3>
+<pre><code><span class="cm">conftest.py            环境、靶机、策略        ← 换项目还能用</span>
+<span class="cm">tests/conftest.py      业务 fixture            ← 换项目就要改</span>
+<span class="cm">tests/api/conftest.py  子目录专属前置条件      ← 只有这里需要</span></code></pre>
+  <p>一行代码放哪层，只问：<b>换个被测系统，这行还成立吗？</b> 成立往上，不成立往下。</p>
+  <p>同名 fixture 子层覆盖父层，「局部特化、全局兜底」天然成立，不需要额外机制。
+  本仓库里 <code>clean_library</code> 一开始放在 <code>api/</code>，
+  后来 <code>contract/</code> 也要用，就上提到了 <code>tests/conftest.py</code>——
+  这就是分层该有的演进方向。</p>
+
+  <h3>1.3 参数化：三种用法对应三种场景</h3>
+  <div class="grid3">
+    <div class="box">
+      <h4>直接参数化</h4>
+      <p>同一逻辑、不同输入。<br>
+      <code>test_create_validation_matrix</code>：<br>4 种载荷 → 预期状态码</p>
+    </div>
+    <div class="box">
+      <h4>indirect</h4>
+      <p>参数喂给 fixture，改的是<b>前置条件</b>不是入参。<br>
+      <code>ttl=3600 / -1</code> 控制令牌是否已过期</p>
+    </div>
+    <div class="box">
+      <h4>数据驱动</h4>
+      <p>用例写在 <code>tests/data/*.json</code>，<br>
+      由 <code>pytest_generate_tests</code> 注入。<br>产品同学也能加用例</p>
+    </div>
+  </div>
+
+  <h3>1.4 marker：分组决定 CI 跑什么</h3>
+  <table>
+    <thead><tr><th style="width:20%">marker</th><th style="width:34%">含义</th><th>跑在哪一档</th></tr></thead>
+    <tbody>
+      <tr><td><code>smoke</code></td><td>冒烟，30 秒内跑完</td><td>PR 门禁必跑（9 条）</td></tr>
+      <tr><td><code>regression</code></td><td>回归</td><td>主干合并前</td></tr>
+      <tr><td><code>contract</code></td><td>契约测试</td><td>主干 + 夜间漂移演练（11 条）</td></tr>
+      <tr><td><code>destructive</code></td><td>会写数据</td><td>PR 上排除；<code>--env prod</code> 自动 skip</td></tr>
+      <tr><td><code>slow</code></td><td>耗时用例</td><td>仅夜间</td></tr>
+      <tr><td><code>scope</code></td><td>作用域教学</td><td>本地学习用，CI 不跑</td></tr>
+    </tbody>
+  </table>
+  <p><code>--strict-markers</code> 打开后，写错 marker 名直接报错。不打这个开关，
+  「标签打了但没生效」可以隐藏很久——你以为在跑冒烟，实际一条都没跑。</p>
+
+  <h3>1.5 插件：两个必须知道的坑</h3>
+  <div class="bad">
+    <b>坑一：<code>--dist loadscope</code> 而不是默认的 <code>load</code>。</b>
+    同一模块的用例落在同一 worker，模块级 fixture 和共享状态才成立。
+    默认 <code>load</code> 按单条分发，同一个文件被拆到两个进程，
+    模块级计数器和共享靶机会直接错乱。
+  </div>
+  <div class="bad">
+    <b>坑二：<code>--reruns</code> 绝不能写进全局 addopts。</b>
+    <code>test_permanent_failure_is_not_masked</code> 就是在演示这个：
+    真实的 5xx 缺陷会被同一次运行内的重试吃掉，CI 从此永远绿。
+    重试只能按用例打 <code>@pytest.mark.flaky(reruns=3)</code>。
+  </div>
+
+  <h3>自检清单</h3>
+  <div id="s1"></div>
+</section>
+
+<!-- ============================ 2 ============================ -->
+<section>
+  <h2><span class="no">2</span>接口测试的「真本事」</h2>
+
+  <h3>2.1 令牌流转：当状态机测，不是测「能不能登」</h3>
+  <div class="svgwrap">
+  <svg viewBox="0 0 760 250" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,sans-serif">
+    <defs>
+      <marker id="ar" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+        <path d="M0,0 L8,3 L0,6 z" fill="#475569"/>
+      </marker>
+    </defs>
+    <rect x="18" y="34" width="112" height="46" rx="8" fill="#eef4ff" stroke="#2563eb" stroke-width="1.4"/>
+    <text x="74" y="56" text-anchor="middle" font-size="13" fill="#1e3a8a" font-weight="600">未登录</text>
+    <text x="74" y="72" text-anchor="middle" font-size="10.5" fill="#5b6472">无 access</text>
+
+    <rect x="176" y="34" width="112" height="46" rx="8" fill="#f0fdf4" stroke="#15803d" stroke-width="1.4"/>
+    <text x="232" y="56" text-anchor="middle" font-size="13" fill="#15803d" font-weight="600">已登录</text>
+    <text x="232" y="72" text-anchor="middle" font-size="10.5" fill="#5b6472">access 有效</text>
+
+    <rect x="334" y="34" width="112" height="46" rx="8" fill="#fff7ed" stroke="#b45309" stroke-width="1.4"/>
+    <text x="390" y="56" text-anchor="middle" font-size="13" fill="#b45309" font-weight="600">已过期</text>
+    <text x="390" y="72" text-anchor="middle" font-size="10.5" fill="#5b6472">401 TOKEN_EXPIRED</text>
+
+    <rect x="492" y="34" width="112" height="46" rx="8" fill="#fef2f2" stroke="#b91c1c" stroke-width="1.4"/>
+    <text x="548" y="56" text-anchor="middle" font-size="13" fill="#b91c1c" font-weight="600">已吊销</text>
+    <text x="548" y="72" text-anchor="middle" font-size="10.5" fill="#5b6472">logout / 重放</text>
+
+    <line x1="130" y1="57" x2="172" y2="57" stroke="#475569" stroke-width="1.4" marker-end="url(#ar)"/>
+    <text x="151" y="48" text-anchor="middle" font-size="10" fill="#475569">login</text>
+
+    <line x1="288" y1="57" x2="330" y2="57" stroke="#475569" stroke-width="1.4" marker-end="url(#ar)"/>
+    <text x="309" y="48" text-anchor="middle" font-size="10" fill="#475569">ttl 到期</text>
+
+    <path d="M 390 80 C 390 118 300 118 262 84" fill="none" stroke="#15803d" stroke-width="1.4" marker-end="url(#ar)"/>
+    <text x="330" y="112" text-anchor="middle" font-size="10" fill="#15803d">refresh → 重试原请求</text>
+
+    <line x1="548" y1="80" x2="548" y2="96" stroke="#b91c1c" stroke-width="1.4"/>
+    <text x="548" y="110" text-anchor="middle" font-size="10" fill="#b91c1c">续期失败 → 重登</text>
+
+    <line x1="446" y1="57" x2="488" y2="57" stroke="#475569" stroke-width="1.4" marker-end="url(#ar)"/>
+    <text x="467" y="48" text-anchor="middle" font-size="10" fill="#475569">logout</text>
+
+    <line x1="18" y1="57" x2="18" y2="150" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4 3"/>
+    <line x1="18" y1="150" x2="124" y2="150" stroke="#94a3b8" stroke-width="1.2" stroke-dasharray="4 3" marker-end="url(#ar)"/>
+
+    <rect x="18" y="170" width="724" height="62" rx="8" fill="#f8fafc" stroke="#e2e5ea"/>
+    <text x="34" y="191" font-size="12" fill="#1a1d23" font-weight="600">为什么要把 TOKEN_EXPIRED 和 INVALID_TOKEN 分成两个 code：</text>
+    <text x="34" y="211" font-size="11.5" fill="#5b6472">客户端看到前者才知道该 refresh，看到后者才知道该重新登录。只返回一个 401 Unauthorized 的接口，</text>
+    <text x="34" y="226" font-size="11.5" fill="#5b6472">前端只能一律踢回登录页——这是接口设计缺陷，不是前端的问题，测试要把它指出来。</text>
+  </svg>
+  </div>
+
+  <h3>2.2 数据依赖与清理</h3>
+  <p><code>book_factory</code> 是 yield 工厂：创建 → 用例逻辑 → 用例结束自动删除。</p>
+  <div class="warn">
+    清理必须容错（接受 <code>204 or 404</code>）。如果清理也 assert 状态码，
+    会出现「因为清理失败而失败」的红——这是最误导人的一种，因为它让你去查业务，
+    问题却在前一轮用例里。
+  </div>
+  <p><b>不要依赖库里预置的数据。</b>所有需要精确计数的用例（分页）用
+  <code>clean_library</code> 显式重置，而不是赌「上次跑完留下的状态刚好对」。
+  接真实靶场时这个 fixture 会自动 skip，不会假装成功。</p>
+
+  <h3>2.3 schema 校验：两层不是重复</h3>
+  <table>
+    <thead><tr><th style="width:24%">层</th><th style="width:26%">来源</th><th>表达什么</th></tr></thead>
+    <tbody>
+      <tr><td><code>models.py</code></td><td>本地手写 pydantic</td><td>「我期望的数据」</td></tr>
+      <tr><td><code>contracts.py</code></td><td>手写 JSON Schema</td><td>「服务端承诺的结构」</td></tr>
+      <tr><td><code>/openapi.json</code></td><td>服务端发布</td><td>「服务端实际发布的契约」</td></tr>
+    </tbody>
+  </table>
+
+  <p><b>实测：把 <code>published_year</code> 从 int 改成 str 之后——</b></p>
+<pre><code><span class="fn">pytest</span> -m contract --schema-drift
+FAILED test_list_response_matches_schema          <span class="cm"># 本地 schema 拦住</span>
+FAILED test_item_response_matches_schema          <span class="cm"># 本地 schema 拦住</span>
+FAILED test_pydantic_and_jsonschema_agree         <span class="cm"># pydantic 放过了！</span>
+FAILED test_live_response_conforms_to_openapi     <span class="cm"># OpenAPI 契约拦住</span></code></pre>
+
+  <div class="bad">
+    <b>pydantic 默认 lax 模式</b>：<code>"1991"</code> 会被自动转成 <code>1991</code>，校验通过。
+    jsonschema 不会做这种转换。这就是必须要两层的原因——
+    pydantic 写起来方便，但对类型漂移不敏感；
+    只用它，等于给上游悄悄改字段类型开了绿灯。
+  </div>
+
+  <h3>2.4 401 与 403 的分界</h3>
+  <div class="grid2">
+    <div class="box">
+      <h4>401 = 我不知道你是谁</h4>
+      <p>缺令牌、令牌无效、令牌过期、令牌被吊销<br>
+      <code>test_forged_token_is_rejected</code><br>
+      <code>test_logout_invalidates_access_token</code></p>
+    </div>
+    <div class="box">
+      <h4>403 = 我知道你是谁但不能做</h4>
+      <p>已认证，权限不足<br>
+      <code>test_normal_user_cannot_read_admin_stats</code><br>
+      <code>test_cannot_delete_others_book</code></p>
+    </div>
+  </div>
+  <p>越权用例还多断言一句：<b>403 之后数据必须还在</b>。只看状态码不看结果，
+  会漏掉「返回 403 但已经删了」这种最危险的实现。</p>
+
+  <h3>自检清单</h3>
+  <div id="s2"></div>
+</section>
+
+<!-- ============================ 3 ============================ -->
+<section>
+  <h2><span class="no">3</span>CI/CD 落地</h2>
+
+  <div class="svgwrap">
+  <svg viewBox="0 0 760 200" xmlns="http://www.w3.org/2000/svg" font-family="Microsoft YaHei,sans-serif">
+    <rect x="10" y="30" width="230" height="140" rx="10" fill="#eef4ff" stroke="#2563eb" stroke-width="1.4"/>
+    <text x="125" y="56" text-anchor="middle" font-size="13.5" fill="#1e3a8a" font-weight="700">PR 门禁 · smoke</text>
+    <text x="125" y="78" text-anchor="middle" font-size="11" fill="#475569">-m "smoke and not destructive"</text>
+    <text x="125" y="95" text-anchor="middle" font-size="11" fill="#475569">-n auto --dist loadscope</text>
+    <text x="125" y="112" text-anchor="middle" font-size="11" fill="#475569">--reruns 2 --reruns-delay 1</text>
+    <text x="125" y="136" text-anchor="middle" font-size="11" fill="#15803d" font-weight="600">9 条 · 0.9 秒 · 必绿</text>
+    <text x="125" y="155" text-anchor="middle" font-size="10.5" fill="#5b6472">超时 10 分钟，报告留 7 天</text>
+
+    <rect x="265" y="30" width="230" height="140" rx="10" fill="#f0fdf4" stroke="#15803d" stroke-width="1.4"/>
+    <text x="380" y="56" text-anchor="middle" font-size="13.5" fill="#15803d" font-weight="700">主干全量 · full</text>
+    <text x="380" y="78" text-anchor="middle" font-size="11" fill="#475569">-m "not slow"</text>
+    <text x="380" y="95" text-anchor="middle" font-size="11" fill="#475569">Python 3.11 / 3.12 矩阵</text>
+    <text x="380" y="112" text-anchor="middle" font-size="11" fill="#475569">junit.xml + HTML 报告</text>
+    <text x="380" y="136" text-anchor="middle" font-size="11" fill="#15803d" font-weight="600">fail-fast: false</text>
+    <text x="380" y="155" text-anchor="middle" font-size="10.5" fill="#5b6472">矩阵里一个版本挂了也要跑完</text>
+
+    <rect x="520" y="30" width="230" height="140" rx="10" fill="#fff7ed" stroke="#b45309" stroke-width="1.4"/>
+    <text x="635" y="56" text-anchor="middle" font-size="13.5" fill="#b45309" font-weight="700">夜间 · nightly</text>
+    <text x="635" y="78" text-anchor="middle" font-size="11" fill="#475569">全量，含 slow</text>
+    <text x="635" y="95" text-anchor="middle" font-size="11" fill="#475569">+ 契约漂移演练</text>
+    <text x="635" y="112" text-anchor="middle" font-size="11" fill="#475569">continue-on-error</text>
+    <text x="635" y="136" text-anchor="middle" font-size="11" fill="#b45309" font-weight="600">证明契约真的会拦</text>
+    <text x="635" y="155" text-anchor="middle" font-size="10.5" fill="#5b6472">报告留 30 天</text>
+
+    <line x1="240" y1="100" x2="261" y2="100" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#ar2)"/>
+    <line x1="495" y1="100" x2="516" y2="100" stroke="#94a3b8" stroke-width="1.6" marker-end="url(#ar2)"/>
+    <defs><marker id="ar2" markerWidth="9" markerHeight="9" refX="8" refY="3" orient="auto">
+      <path d="M0,0 L8,3 L0,6 z" fill="#94a3b8"/></marker></defs>
+  </svg>
+  </div>
+
+  <h3>三个设计决策</h3>
+  <div class="grid3">
+    <div class="box">
+      <h4>PR 不跑 destructive</h4>
+      <p>写操作用例在 PR 上跑，一旦有并发提交就互相踩数据，
+      红得毫无规律，很快就被人忽略掉。</p>
+    </div>
+    <div class="box">
+      <h4><code>--env prod</code> 是硬守卫</h4>
+      <p><code>pytest_collection_modifyitems</code> 在<b>收集阶段</b>就打 skip，
+      不依赖人记得加参数。写了 destructive 的用例在生产环境永远不会被执行。</p>
+    </div>
+    <div class="box">
+      <h4>报告自包含</h4>
+      <p><code>--self-contained-html</code>：单文件、无外链，
+      下载下来双击能看，不用起服务。</p>
+    </div>
+  </div>
+
+  <div class="note">
+    接真实环境时把 job 里的 run 换成
+    <code>pytest -m smoke --base-url "${{ secrets.STAGING_BASE_URL }}" --env staging</code>，
+    地址与凭据放 GitHub Secrets。
+  </div>
+
+  <h3>自检清单</h3>
+  <div id="s3"></div>
+</section>
+
+<!-- ============================ 4 ============================ -->
+<section>
+  <h2><span class="no">4</span>五个刻意埋下的坑</h2>
+  <p class="lead">都是真实项目里踩过的，故意留在靶机里让你遇到一次。</p>
+
+  <table>
+    <thead><tr><th style="width:26%">坑</th><th style="width:38%">表现</th><th>根因 / 修法</th></tr></thead>
+    <tbody>
+      <tr>
+        <td><b>401 时不读请求体</b></td>
+        <td>刷新令牌莫名失败，报 400 或读不到请求行</td>
+        <td>HTTP/1.1 长连接：未读字节留在 socket 里，下一个请求被顶掉。必须在路由前把 body 读完</td>
+      </tr>
+      <tr>
+        <td><b>分页 <code>size</code> 回显 <code>len(items)</code></b></td>
+        <td>最后一页只有 5 条时回 <code>size=5</code>，前端算错总页数</td>
+        <td>必须回显请求值。<code>test_page_count_is_ceiling[size=50]</code> 抓这个</td>
+      </tr>
+      <tr>
+        <td><b><code>reset()</code> 顺手关掉漂移开关</b></td>
+        <td>「明明开了 <code>--schema-drift</code>，契约测试却全绿」</td>
+        <td>配置与业务数据必须分开重置，否则出现假阴性</td>
+      </tr>
+      <tr>
+        <td><b>用 uuid 做 flaky 用例的 key</b></td>
+        <td>测试稳定失败且看不出原因</td>
+        <td>重试会重新执行函数体，每次都是新 key，故障永远停在「第一次」。改用 <code>request.node.nodeid</code></td>
+      </tr>
+      <tr>
+        <td><b><code>--reruns</code> 写进全局 addopts</b></td>
+        <td>真 bug 被重试吃掉，CI 永远绿</td>
+        <td>只按需打 <code>@pytest.mark.flaky</code>，全局配置开重试等于关掉了门禁</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ============================ 5 ============================ -->
+<section>
+  <h2><span class="no">5</span>14 天推进表</h2>
+  <p class="lead">每天 1.5–2 小时。目标不是「学完」，是「每个能力都留下一条自己写的用例」。</p>
+
+  <div class="day">
+    <div class="day-h"><b>W1 · Day 1–3</b><em>pytest 骨架</em></div>
+    <ul>
+      <li>跑通 <code>pytest -q</code>，读一遍 <code>conftest.py</code> 的三层结构</li>
+      <li>跑 <code>pytest -m scope -v</code>，看懂三种作用域的构造计数</li>
+      <li>自己加一条用例：选 <code>BookPage</code> 的 <code>pages</code> 字段写 3 条边界断言</li>
+    </ul>
+  </div>
+  <div class="day">
+    <div class="day-h"><b>W1 · Day 4–5</b><em>参数化与 marker</em></div>
+    <ul>
+      <li>改 <code>tests/data/books_create.json</code> 加 2 条用例，不动代码跑出来</li>
+      <li>写一个 indirect 参数化：用 fixture 参数控制登录角色</li>
+      <li>验证 <code>--strict-markers</code>：打一个拼错的 marker，看是否报错</li>
+    </ul>
+  </div>
+  <div class="day">
+    <div class="day-h"><b>W2 · Day 6–8</b><em>鉴权与数据流转</em></div>
+    <ul>
+      <li>读 <code>test_auth.py</code>，手工画一遍令牌状态机</li>
+      <li>自己补一条：refresh token 过期（服务端没这种状态，改成"用 admin 的 refresh 换 alice 的 token"）</li>
+      <li>把 <code>book_factory</code> 改成支持批量创建，验证清理逻辑不漏</li>
+    </ul>
+  </div>
+  <div class="day">
+    <div class="day-h"><b>W2 · Day 9–10</b><em>schema 与契约</em></div>
+    <ul>
+      <li>跑 <code>--schema-drift</code>，看 4 条红的报错信息</li>
+      <li>把 <code>contracts.py</code> 里 <code>PUBLISHED_YEAR</code> 的 minimum 改成 2020，看哪些用例变红</li>
+      <li>给 <code>/api/admin/stats</code> 补一份 OpenAPI 定义和对应契约用例</li>
+    </ul>
+  </div>
+  <div class="day">
+    <div class="day-h"><b>W3 · Day 11–12</b><em>并行与不稳定</em></div>
+    <ul>
+      <li>对比 <code>-n auto</code> 与单进程的耗时，自己算一次开销</li>
+      <li>把 <code>test_flaky.py</code> 的 <code>fail_times</code> 改成 4，确认 reruns=3 已经救不回来</li>
+      <li>故意写一条会随机失败的用例，看不带 reruns 时 CI 会怎样</li>
+    </ul>
+  </div>
+  <div class="day">
+    <div class="day-h"><b>W3 · Day 13–14</b><em>CI 落地</em></div>
+    <ul>
+      <li>把仓库推到 GitHub，看 Actions 里的 smoke job 跑通</li>
+      <li>造一个失败 PR，看报告 artifact 长什么样</li>
+      <li>给 nightly 加一个步骤：把 HTML 报告推到 GitHub Pages（可选）</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ============================ 6 ============================ -->
+<section>
+  <h2><span class="no">6</span>面试问答映射</h2>
+
+  <div class="qa">
+    <div class="q">Q：fixture 作用域你怎么选？</div>
+    <div class="a">先看构造代价，再看是否污染状态。连接池、只登录一次这类昂贵且无状态的放 session；
+    本文件共用的只读数据放 module；会写数据的放 function。我用构造计数器验证过，
+    不用 id()——CPython 会复用内存地址，id 相同不代表同一个对象。</div>
+  </div>
+  <div class="qa">
+    <div class="q">Q：conftest 你怎么分层？</div>
+    <div class="a">三层：根层放环境和策略，换项目还能用；业务层放客户端和数据工厂，换项目就要改；
+    子目录层放局部前置条件。判断标准是「换个被测系统这行还成立吗」。
+    同名 fixture 子层覆盖父层，局部特化天然成立。</div>
+  </div>
+  <div class="qa">
+    <div class="q">Q：接口测试的鉴权你怎么测？</div>
+    <div class="a">当状态机测，不只测能不能登：登录拿 access+refresh → access 过期时客户端必须透明续期一次
+    → refresh 必须一次性（防重放）→ logout 后 access 立刻失效。
+    服务端要把 TOKEN_EXPIRED 和 INVALID_TOKEN 分成两个 code，否则前端只能一律踢回登录页。</div>
+  </div>
+  <div class="qa">
+    <div class="q">Q：你的用例怎么处理数据依赖？</div>
+    <div class="a">yield 工厂，用例自己造、自己清，清理容错（接受 204 和 404）。
+    需要精确计数的用例显式重置，不依赖预置数据。清理不 assert 状态码——
+    否则会红在「清理失败」，误导排查方向。</div>
+  </div>
+  <div class="qa">
+    <div class="q">Q：schema 校验你用什么？</div>
+    <div class="a">两层。pydantic 表达「我期望的数据」，JSON Schema 表达「服务端承诺的结构」，
+    再从服务的 OpenAPI 拿第三个来源。实测把 int 字段改成 str，
+    pydantic 的 lax 模式会放过，jsonschema 和 OpenAPI 契约能拦住——这就是两层的意义。</div>
+  </div>
+  <div class="qa">
+    <div class="q">Q：不稳定用例你怎么处理？</div>
+    <div class="a">先分类：瞬时故障按用例打 reruns，永久故障绝不重试。
+    <code>--reruns</code> 不能写进全局 addopts，否则真 bug 被重试吃掉、CI 永远绿。
+    我会写一条「永久故障必须红」的用例来验证这点没被破坏。</div>
+  </div>
+  <div class="qa">
+    <div class="q">Q：你的测试怎么进 CI？</div>
+    <div class="a">三档。PR 只跑 smoke 且排除 destructive，60 秒内出结论；
+    主干跑全量并上 Python 矩阵，fail-fast 关掉；
+    夜间跑 slow 和契约漂移演练。生产环境用 <code>--env prod</code> 在收集阶段就 skip 掉写操作用例。</div>
+  </div>
+  <div class="qa">
+    <div class="q">Q：什么时候不该用并行？</div>
+    <div class="a">用例少的时候。我实测 79 条：单进程 2.78 秒，4 worker 6.05 秒——
+    并行反而慢，因为每个 worker 要独立起靶机、独立导入。
+    并行有固定开销，一两百条以下不开。开的时候用 <code>--dist loadscope</code>，
+    保证同模块在同一 worker，模块级 fixture 才成立。</div>
+  </div>
+</section>
+
+<!-- ============================ 7 ============================ -->
+<section>
+  <h2><span class="no">7</span>换公网靶场练（可选）</h2>
+  <p class="lead">本地靶机跑通之后，可以换真实服务验证同一套工程能力。靶场只是载体，
+  换的时候只改 <code>client.py</code>，用例断言逻辑不动。</p>
+
+  <table>
+    <thead><tr><th style="width:20%">靶场</th><th style="width:32%">能练什么</th><th>坑</th></tr></thead>
+    <tbody>
+      <tr><td><b>httpbin.org</b></td><td>fundamentals：状态码、header、重定向、响应结构</td><td>无状态无鉴权，练不到 token 流转；国内访问不稳</td></tr>
+      <tr><td><b>Restful-booker</b></td><td>token 鉴权、CRUD 闭环、yield 清理</td><td>托管在公网，冷启动慢；写操作不真落库</td></tr>
+      <tr><td><b>DummyJSON</b></td><td>参数化、分页、超时重试</td><td>支持 <code>?delay=</code> 参数，正好用来练超时断言</td></tr>
+      <tr><td><b>Practice Software Testing</b></td><td>全栈 + CI 门禁 + 缺陷报告</td><td>注册会限流，用站点提供的固定账号</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note">
+    再往后是给真实开源仓库补测试（open-webui / dify / ragflow / langflow）。
+    核心纪律：一个 PR 只做一件事、改动 200 行以内、先开 issue 问一句再动手。
+    第一个 PR 的最佳切入点通常是补边界用例或修 CI 里的不稳定用例，不是加新功能。
+  </div>
+</section>
+
+<footer>
+  阶段一工程底座练手手册 · 配套仓库 <code>AI测试/api-lab</code> · 实测 79 passed
+</footer>
+
+</div>
+
+<script>
+const DATA = {
+  s1: [
+    "能说出 session / module / function 三种作用域各自的判断标准，不是背名字",
+    "能解释为什么用构造计数器而不是 id() 来验证作用域",
+    "能说清 conftest 三层的判断规则（换项目还成立吗）",
+    "写过一条 indirect 参数化，并且知道它和普通参数化的区别",
+    "能解释 --strict-markers 为什么要开",
+    "知道 --dist loadscope 与默认 load 的区别",
+    "能说出 --reruns 写进全局 addopts 的后果"
+  ],
+  s2: [
+    "能画出令牌状态机，并说出 TOKEN_EXPIRED 与 INVALID_TOKEN 的区别",
+    "能解释清理逻辑为什么要容错（204 or 404）",
+    "能说出 pydantic lax 模式对类型漂移不敏感这件事",
+    "跑过 --schema-drift，看过那 4 条红的报错",
+    "能说清 401 与 403 的分界",
+    "知道越权用例还要断言「没有产生副作用」",
+    "能说契约测试为什么要用两个独立来源"
+  ],
+  s3: [
+    "能说清三档流水线各自的触发时机与范围",
+    "知道 PR 阶段为什么要排除 destructive",
+    "知道 --env prod 的 skip 是在收集阶段做的，不依赖人",
+    "知道报告为什么要 --self-contained-html",
+    "把自己的仓库推上 GitHub 并让 Actions 跑通过一次",
+    "下载过一次报告 artifact，确认双击能打开"
+  ]
+};
+const KEY = "apilab-progress-v1";
+let state = {};
+try { state = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { state = {}; }
+
+function render() {
+  let total = 0, done = 0;
+  Object.keys(DATA).forEach(sid => {
+    const host = document.getElementById(sid);
+    if (!host) return;
+    host.innerHTML = "";
+    DATA[sid].forEach((text, i) => {
+      const id = sid + "-" + i;
+      total++;
+      const on = !!state[id];
+      if (on) done++;
+      const row = document.createElement("label");
+      row.className = "check" + (on ? " done" : "");
+      const cb = document.createElement("input");
+      cb.type = "checkbox"; cb.checked = on;
+      cb.addEventListener("change", () => {
+        state[id] = cb.checked;
+        localStorage.setItem(KEY, JSON.stringify(state));
+        row.classList.toggle("done", cb.checked);
+        update();
+      });
+      const sp = document.createElement("span");
+      sp.textContent = text;
+      row.appendChild(cb); row.appendChild(sp);
+      host.appendChild(row);
+    });
+  });
+  document.getElementById("bar").style.width = (total ? done / total * 100 : 0) + "%";
+  document.getElementById("pct").textContent = (total ? Math.round(done / total * 100) : 0) + "%";
+}
+function update() {
+  let total = 0, done = 0;
+  Object.keys(DATA).forEach(sid => DATA[sid].forEach((_, i) => {
+    total++; if (state[sid + "-" + i]) done++;
+  }));
+  document.getElementById("bar").style.width = (total ? done / total * 100 : 0) + "%";
+  document.getElementById("pct").textContent = (total ? Math.round(done / total * 100) : 0) + "%";
+}
+function resetAll() {
+  state = {}; localStorage.removeItem(KEY); render();
+}
+render();
+</script>
+</body>
+</html>

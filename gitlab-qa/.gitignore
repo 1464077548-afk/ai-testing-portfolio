@@ -1,0 +1,34 @@
+# 环境与密钥
+.env
+.env.*
+!.env.example
+
+# 运行结果
+allure-results/
+allure-report/
+out/
+artifacts/
+screenshots/
+traces/
+.pytest_cache/
+.cache/
+
+# 历史趋势（体积大，CI 上由 artifact 传递，不入库）
+allure-history/
+gh-pages/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+
+# 编辑器
+.idea/
+.vscode/
+*.swp
+Thumbs.db
+.DS_Store

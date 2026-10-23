@@ -1,0 +1,308 @@
+name: gitlab-qa
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: 要跑的套件
+        default: regression
+        type: choice
+        options: [smoke, api, ui, e2e, perf, security, regression, all]
+      base_url:
+        description: GitLab 地址
+        default: https://gitlab.com
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONUNBUFFERED: "1"
+
+jobs:
+  # ------------------------------------------------------------------
+  # 1. 框架自检：不联网、不要被测系统，秒级反馈
+  # ------------------------------------------------------------------
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: 框架自检
+        run: pytest tests/unit -q --alluredir=allure-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-unit
+          path: allure-results
+
+  # ------------------------------------------------------------------
+  # 2. 冒烟：只读用例，任何环境都能过，PR 门禁
+  # ------------------------------------------------------------------
+  smoke:
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: 冒烟（只读，不需要 Token）
+        env:
+          GITLAB_BASE_URL: ${{ inputs.base_url || 'https://gitlab.com' }}
+        run: |
+          pytest tests/unit tests/smoke \
+                 tests/api/test_contract.py tests/api/test_pagination.py \
+                 -q -m "not destructive" --alluredir=allure-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-smoke
+          path: allure-results
+
+  # ------------------------------------------------------------------
+  # 3. 靶机全量：不需要真实 GitLab，一条命令跑完六层（含 UI/E2E/性能）
+  #    存在的意义：真实实例要 8GB 内存 + 10 分钟启动，PR 上等不起。
+  #    这一层保证「框架本身没坏」，真实实例那层保证「被测系统没坏」。
+  # ------------------------------------------------------------------
+  mock:
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: playwright install --with-deps chromium
+      - name: 靶机全量（含 UI 与 E2E）
+        run: python tools/run.py --suite all --mock
+      - name: 门禁必须会拦（延迟注入后应当非零退出）
+        run: |
+          if python tools/run.py --suite perf --mock --mock-latency-ms 1500 --no-report; then
+            echo "性能门禁没有拦住越界延迟，说明阈值判定失效"
+            exit 1
+          else
+            echo "性能门禁按预期拦截"
+          fi
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-mock
+          path: allure-results
+
+  # ------------------------------------------------------------------
+  # 4. 接口全量：起一个真实 GitLab CE，跑写操作
+  # ------------------------------------------------------------------
+  api:
+    runs-on: ubuntu-latest
+    needs: smoke
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    env:
+      ROOT_PW: ${{ secrets.GITLAB_ROOT_PASSWORD || 'QaLab@2026' }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: 启动 GitLab CE
+        run: |
+          docker run -d --name gitlab \
+            --shm-size 2gb \
+            -p 8929:80 -p 2222:22 \
+            -e GITLAB_ROOT_PASSWORD="$ROOT_PW" \
+            -e GITLAB_OMNIBUS_CONFIG="external_url 'http://localhost:8929'; nginx['listen_port']=80; gitlab_rails['initial_root_password']='$ROOT_PW'" \
+            gitlab/gitlab-ce:17.5.0-ce.0
+      - name: 等待实例就绪
+        run: |
+          for i in $(seq 1 60); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8929/-/health || true)
+            if [ "$code" = "200" ]; then echo ready; exit 0; fi
+            sleep 10
+          done
+          docker logs --tail 60 gitlab
+          exit 1
+      - name: 签发测试用 Token
+        id: token
+        run: |
+          TOKEN=$(python tools/doctor.py --issue-token \
+                  --container gitlab --user root 2>/dev/null | tail -1)
+          echo "::add-mask::$TOKEN"
+          echo "token=$TOKEN" >> "$GITHUB_OUTPUT"
+      - name: 接口全量
+        env:
+          GITLAB_BASE_URL: http://localhost:8929
+          GITLAB_TOKEN: ${{ steps.token.outputs.token }}
+        run: pytest tests/api -q -n 4 --dist loadscope --alluredir=allure-results
+      - name: 容器日志
+        if: failure()
+        run: docker logs --tail 80 gitlab
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-api
+          path: allure-results
+
+  # ------------------------------------------------------------------
+  # 5. UI：Playwright，只在主干跑（PR 上太慢）
+  # ------------------------------------------------------------------
+  ui:
+    runs-on: ubuntu-latest
+    needs: smoke
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - run: playwright install --with-deps chromium
+      - env:
+          GITLAB_BASE_URL: ${{ inputs.base_url || 'https://gitlab.com' }}
+        run: pytest tests/ui -q --alluredir=allure-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-ui
+          path: allure-results
+
+  # ------------------------------------------------------------------
+  # 6. 性能：只在手动触发跑。放 PR 上会污染结论——
+  #    CI 机器的性能数据和本机没有可比性
+  # ------------------------------------------------------------------
+  perf:
+    runs-on: ubuntu-latest
+    needs: smoke
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - env:
+          GITLAB_BASE_URL: ${{ inputs.base_url || 'https://gitlab.com' }}
+        run: pytest tests/perf -q --alluredir=allure-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-perf
+          path: allure-results
+
+  # ------------------------------------------------------------------
+  # 7. 安全：只在手动触发跑，且**只对白名单内的目标执行**
+  #    默认 base_url 是公网 gitlab.com，守卫会让全部用例 skip —— 这是刻意的：
+  #    想真跑就把 vars.SECURITY_ALLOWED_HOSTS 指向你自己的实例。
+  # ------------------------------------------------------------------
+  security:
+    runs-on: ubuntu-latest
+    needs: smoke
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: 安全套件（信任边界内）
+        env:
+          GITLAB_BASE_URL: ${{ inputs.base_url }}
+          GITLAB_TOKEN: ${{ secrets.GITLAB_TOKEN }}
+          GITLAB_MEMBER_TOKEN: ${{ secrets.GITLAB_MEMBER_TOKEN }}
+          SECURITY_ALLOWED_HOSTS: ${{ vars.SECURITY_ALLOWED_HOSTS }}
+        run: pytest tests/security -q --alluredir=allure-results
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results-security
+          path: allure-results
+
+  # ------------------------------------------------------------------
+  # 7.5 flake 治理：隔离区体检每次都跑，稳定性采样只在手动触发。
+  #     前者便宜（读一个 JSON），后者贵（重复 N 轮），按收益分级
+  # ------------------------------------------------------------------
+  quarantine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: 隔离区体检（缺原因 / 缺期限 / 已到期 / 超限都会红）
+        run: python tools/flake.py --check-quarantine --verify-nodeids
+
+  flake:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -e ".[dev]"
+      - name: 稳定性采样（靶机，重复 5 轮）
+        run: python tools/flake.py --suite smoke --mock --rounds 5 --max-flake-rate 0.05
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: flake-report
+          path: artifacts/flake/
+
+  # ------------------------------------------------------------------
+  # 8. 汇总：合并各 job 的结果，产出一份完整 Allure 报告
+  #    分 job 跑是为了并行和失败隔离，但最终报告必须是一份——
+  #    给三份报告让人自己拼，等于没报告
+  # ------------------------------------------------------------------
+  report:
+    runs-on: ubuntu-latest
+    needs: [unit, smoke, mock, security, quarantine]
+    if: always()
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: results-*
+          merge-multiple: true
+          path: allure-results
+      - name: 注入缺陷归类与构建信息
+        run: |
+          cp allure/categories.json allure-results/ 2>/dev/null || true
+          cat > allure-results/executor.json <<EOF
+          {
+            "name": "GitHub Actions",
+            "type": "github",
+            "url": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}",
+            "buildName": "#${{ github.run_number }}",
+            "reportName": "GitLab QA · ${{ github.ref_name }}"
+          }
+          EOF
+      - name: 生成 Allure 报告
+        uses: simple-elf/allure-report-action@master
+        if: always()
+        with:
+          allure_results: allure-results
+          allure_report: allure-report
+          gh_pages: gh-pages
+          allure_history: allure-history
+      - name: 报告界面汉化
+        if: always()
+        run: python tools/localize_report.py allure-report || echo "汉化失败，报告保持英文"

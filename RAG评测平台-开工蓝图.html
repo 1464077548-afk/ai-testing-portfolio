@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RAG 质量评测平台 · 开工蓝图</title>
+<style>
+:root{
+  --bg:#FFFFFF; --surface:#FAFAF8; --surface2:#F3F2ED;
+  --line:rgba(0,0,0,0.12); --line2:rgba(0,0,0,0.06);
+  --text:#1F1F1E; --muted:#6B6A66; --faint:#93918B;
+  --accent:#854F0B; --accentbg:#FAEEDA;
+  --blue:#185FA5; --bluebg:#E6F1FB; --teal:#0F6E56; --tealbg:#E1F5EE;
+  --code:#F7F6F2;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:14px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-weight:500}
+p{margin:0}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;font-size:.88em;
+  background:var(--code);padding:1px 5px;border-radius:4px;border:1px solid var(--line2)}
+pre{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  font-size:12px;line-height:1.62;background:var(--code);border:1px solid var(--line2);
+  border-radius:8px;padding:14px 16px;overflow-x:auto;margin:0}
+pre code{background:none;border:none;padding:0;font-size:inherit}
+
+.shell{display:grid;grid-template-columns:214px minmax(0,1fr);max-width:1180px;margin:0 auto}
+.side{position:sticky;top:0;height:100vh;padding:28px 16px;border-right:1px solid var(--line2)}
+.brand{display:flex;align-items:center;gap:8px;margin-bottom:20px}
+.brand b{font-size:13px;font-weight:500;line-height:1.35}
+.brand span{display:block;font-size:11px;color:var(--faint);font-weight:400}
+.toc{display:flex;flex-direction:column;gap:1px}
+.toc a{font-size:12.5px;color:var(--muted);padding:5px 8px;border-radius:6px}
+.toc a:hover{background:var(--surface2);color:var(--text)}
+main{padding:34px 40px 80px;min-width:0}
+
+.eyebrow{font-size:11px;letter-spacing:.08em;color:var(--faint);text-transform:uppercase}
+h1{font-size:25px;margin:8px 0 10px;line-height:1.3}
+.sub{font-size:14px;color:var(--muted);max-width:66ch}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chip{font-size:12px;padding:3px 10px;border-radius:20px;background:var(--surface2);color:var(--muted);border:1px solid var(--line2)}
+.toolbar{display:flex;gap:8px;margin-top:18px}
+.btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:7px 12px;border-radius:7px;
+  border:1px solid var(--line);background:#fff;cursor:pointer;font-family:inherit;color:var(--text)}
+.btn:hover{background:var(--surface2)}
+
+section{margin-top:40px;scroll-margin-top:18px}
+.sec-head{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:16px}
+.sec-head .n{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+h2{font-size:17px}
+h3{font-size:14px;margin:22px 0 8px}
+p.lead{font-size:13px;color:var(--muted);margin-bottom:14px;max-width:74ch}
+p.body{font-size:13.5px;margin-bottom:10px}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0 4px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2);vertical-align:top}
+th{font-size:11px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:500;background:var(--surface)}
+td:first-child{color:var(--text)}
+.mono td:first-child{font-family:"SFMono-Regular",Consolas,monospace;font-size:11.5px;white-space:nowrap}
+.tag{display:inline-block;font-size:10.5px;padding:1px 6px;border-radius:4px;border:1px solid var(--line2);color:var(--muted);white-space:nowrap}
+.tag.b{background:var(--bluebg);color:var(--blue);border-color:rgba(24,95,165,.2)}
+.tag.t{background:var(--tealbg);color:var(--teal);border-color:rgba(15,110,86,.2)}
+.tag.a{background:var(--accentbg);color:var(--accent);border-color:rgba(133,79,11,.2)}
+
+.note{padding:13px 15px;border-radius:9px;background:var(--surface);border:1px solid var(--line2);font-size:13px;margin-top:14px}
+.note b{font-weight:500}
+.note.warn{background:#FCEBEB;border-color:rgba(163,45,45,.18)}
+.note.warn b{color:#791F1F}
+.note.ok{background:var(--tealbg);border-color:rgba(15,110,86,.18)}
+.note.ok b{color:#085041}
+
+.flow{background:var(--surface);border:1px solid var(--line2);border-radius:10px;padding:16px 12px;margin:10px 0}
+.flow svg{display:block;width:100%;height:auto}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.card{border:1px solid var(--line2);border-radius:9px;padding:13px 15px;background:#fff}
+.card h4{font-size:12.5px;margin-bottom:6px}
+.card p{font-size:12.5px;color:var(--muted)}
+
+.steps{counter-reset:s;list-style:none;padding:0;margin:0}
+.steps li{counter-increment:s;display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--line2);font-size:13px}
+.steps li:last-child{border-bottom:none}
+.steps li::before{content:counter(s,decimal-leading-zero);font-size:11px;color:var(--faint);
+  font-variant-numeric:tabular-nums;flex:none;padding-top:2px;width:18px}
+
+.kv{display:flex;gap:8px;font-size:12.5px;padding:5px 0;border-bottom:1px dotted var(--line2)}
+.kv:last-child{border-bottom:none}
+.kv b{font-weight:400;color:var(--faint);flex:none;width:88px}
+
+.mobbar{display:none}
+@media (max-width:980px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line2);padding:14px 18px}
+  .toc{flex-direction:row;overflow-x:auto;gap:2px}
+  .toc a{white-space:nowrap;font-size:12px}
+  main{padding:24px 18px 80px}
+  h1{font-size:21px}
+  .grid2{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .side .brand span{display:none}
+  main{padding:20px 15px 80px}
+  pre{font-size:10.5px;padding:11px 12px}
+  table{font-size:12px}
+  th,td{padding:7px 7px}
+}
+@media print{
+  @page{size:A4;margin:13mm 12mm}
+  body{font-size:9.8pt;line-height:1.5}
+  .shell{display:block;max-width:none}
+  .side,.toolbar{display:none !important}
+  main{padding:0}
+  h1{font-size:19pt;margin:0 0 5pt}
+  h2{font-size:13pt}
+  h3{font-size:11pt;margin:12pt 0 4pt}
+  section{margin-top:14pt}
+  .sec-head{margin-bottom:8pt;padding-bottom:4pt}
+  p.lead{font-size:9.4pt}
+  table{font-size:8.8pt}
+  th,td{padding:3.5pt 5pt}
+  pre{font-size:8.2pt;line-height:1.45;padding:7pt 9pt;break-inside:avoid;page-break-inside:avoid}
+  .card,.note,.flow{break-inside:avoid;page-break-inside:avoid}
+  .flow{padding:8pt}
+  .tag{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .printfoot{display:block !important;margin-top:12pt;font-size:8pt;color:#888;border-top:1px solid #ddd;padding-top:5pt}
+}
+.printfoot{display:none}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="22" height="22" rx="6" stroke="#854F0B" stroke-width="1.2"/>
+        <path d="M6 9.5h6M6 13h9M6 16.5h4" stroke="#854F0B" stroke-width="1.2" stroke-linecap="round"/>
+        <circle cx="16.5" cy="8.5" r="2.2" stroke="#0F6E56" stroke-width="1.2"/>
+      </svg>
+      <b>RAG 评测平台<span>开工蓝图 v1</span></b>
+    </div>
+    <nav class="toc">
+      <a href="#goal">1 定位与验收</a>
+      <a href="#stack">2 技术选型</a>
+      <a href="#tree">3 目录结构</a>
+      <a href="#contract">4 核心契约</a>
+      <a href="#flow">5 数据流</a>
+      <a href="#dataset">6 评测集规范</a>
+      <a href="#metrics">7 指标清单</a>
+      <a href="#report">8 报告与基线</a>
+      <a href="#ci">9 CI 设计</a>
+      <a href="#days">10 十天开工顺序</a>
+      <a href="#risk">11 风险与降级</a>
+      <a href="#interview">12 面试映射</a>
+    </nav>
+  </aside>
+
+  <main>
+    <header>
+      <div class="eyebrow">Phase 03 · 主线项目</div>
+      <h1>RAG 质量评测平台 · 开工蓝图</h1>
+      <p class="sub">目标不是再造一个 RAG 应用，而是造一把能给别人用的尺子：对任意 RAG 问答系统，用可版本化的评测集、可校准的指标、可对比的基线，判断一次改动到底是变好还是变差。</p>
+      <div class="meta">
+        <span class="chip">Python 3.11</span>
+        <span class="chip">pytest + httpx + Ragas</span>
+        <span class="chip">SQLite + Jinja2 报告</span>
+        <span class="chip">GitHub Actions</span>
+        <span class="chip">预计 3 周 / 39 小时</span>
+      </div>
+      <div class="toolbar">
+        <button class="btn" onclick="window.print()">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M4.5 5.5V2.5h7v3M4.5 12.5H3a1 1 0 01-1-1v-4a1 1 0 011-1h10a1 1 0 011 1v4a1 1 0 01-1 1h-1.5" stroke="#1F1F1E" stroke-width="1.2" stroke-linecap="round"/>
+            <rect x="4.5" y="9.5" width="7" height="4" rx=".6" stroke="#1F1F1E" stroke-width="1.2"/>
+          </svg>
+          打印 / 导出 PDF
+        </button>
+      </div>
+    </header>
+
+    <section id="goal">
+      <div class="sec-head"><span class="n">01</span><h2>项目定位与验收标准</h2></div>
+      <p class="lead">一句话定位：<b>一个面向 RAG 系统的自动化质量评估工具链，支持评测集版本化、多层级指标、基线回归对比与安全套件。</b></p>
+      <p class="body">它必须满足四个硬性验收条件，缺一个就不算做完：</p>
+      <table>
+        <thead><tr><th>验收项</th><th>具体标准</th><th>为什么这条重要</th></tr></thead>
+        <tbody>
+          <tr><td>可替换</td><td>换被测系统只改 YAML，不改一行代码</td><td>证明你会做适配层抽象，而不是写死脚本</td></tr>
+          <tr><td>可复现</td><td>同一评测集两次运行，指标差异在抽样误差内</td><td>证明你的数字可信，不是随手编的</td></tr>
+          <tr><td>可判定</td><td>每个指标有阈值，超阈值即失败并有归因</td><td>证明这是测试，不是"跑个分看看"</td></tr>
+          <tr><td>可回归</td><td>与基线对比能输出"显著变好/变差/无变化"</td><td>这是面试里最能打的一个点</td></tr>
+        </tbody>
+      </table>
+      <div class="note ok"><b>范围控制：</b>明确不做模型训练、不做 UI 前端、不自建向量库。被测对象通过 HTTP 调用，评测平台只负责"提问、收集、打分、对比、报告"。</div>
+    </section>
+
+    <section id="stack">
+      <div class="sec-head"><span class="n">02</span><h2>技术选型与取舍理由</h2></div>
+      <p class="lead">选型原则：每一项都要能在面试里回答"为什么是它、为什么不是另一个"。所以下表同时写了不选什么。</p>
+      <table>
+        <thead><tr><th>层</th><th>选型</th><th>选择的理由</th><th>没有选什么</th></tr></thead>
+        <tbody>
+          <tr><td>运行时</td><td>Python 3.11 + uv</td><td>AI 生态默认语言；uv 装依赖快、锁文件确定，CI 可缓存</td><td>Poetry 解析慢；裸 pip 无锁文件</td></tr>
+          <tr><td>测试框架</td><td>pytest 8 + pytest-asyncio + xdist</td><td>招聘市场通用，插件生态最全，异步与并发都覆盖</td><td>unittest 冗长；自研 runner 无法复用生态</td></tr>
+          <tr><td>HTTP 客户端</td><td>httpx</td><td>同步异步同一套 API，支持超时细分与连接池</td><td>requests 无原生异步，并发评测会成瓶颈</td></tr>
+          <tr><td>数据模型</td><td>pydantic v2</td><td>评测集、配置、结果共用一套校验，脏数据在入口就拦</td><td>dataclass 无运行时校验；裸 dict 无法演进</td></tr>
+          <tr><td>配置</td><td>pydantic-settings + YAML</td><td>支持分层覆盖与环境变量注入，密钥不进仓库</td><td>纯 .env 表达不了嵌套结构；纯代码配置不可复用</td></tr>
+          <tr><td>评测集</td><td>JSONL + JSON Schema</td><td>逐行 diff 友好、可人工审阅、可增量追加</td><td>Excel 难版本化；数据库对贡献者门槛高</td></tr>
+          <tr><td>生成指标</td><td>Ragas 0.2</td><td>faithfulness / relevancy / context 指标齐全，社区活跃</td><td>全自研成本高且指标无对照；DeepEval 作为补充而非主力</td></tr>
+          <tr><td>检索指标</td><td>自研（约 80 行）</td><td>hit@k、MRR 算法简单，自己写可控、可解释、面试可讲</td><td>引入框架反而遮蔽了原理，被追问就露怯</td></tr>
+          <tr><td>裁判模型</td><td>可配置，默认 OpenAI 兼容端点（DeepSeek / Qwen / 本地 Ollama）</td><td>成本可控、数据不出域、切换只改配置</td><td>写死 GPT-4 既贵又有合规风险，且不可离线演示</td></tr>
+          <tr><td>存储</td><td>SQLite + 结果 JSON</td><td>零运维、单文件可带走、支持 SQL 查询历史</td><td>Postgres 对单人项目是过度设计</td></tr>
+          <tr><td>报告</td><td>Jinja2 → 单文件 HTML（CSS 内联）</td><td>可离线打开、可当 CI artifact、可邮件发送</td><td>Allure 太重且定制成本高</td></tr>
+          <tr><td>统计</td><td>bootstrap 置信区间（numpy）+ scipy 配对检验</td><td>避免"提升 3%"其实在噪声里</td><td>只比均值是最常见的低级错误</td></tr>
+          <tr><td>一致性</td><td>scikit-learn cohen_kappa_score</td><td>标准实现，报告里可直接给数字</td><td>手算 kappa 容易错，且不可信</td></tr>
+          <tr><td>安全套件</td><td>自研注入集 + promptfoo（夜间补充）</td><td>自研集能接入统一评分；promptfoo 补红队模板</td><td>只用 promptfoo 则与自有指标割裂</td></tr>
+          <tr><td>工程规范</td><td>ruff + mypy + pre-commit</td><td>提交即拦截低级问题，体现工程素养</td><td>无 lint 的仓库在评审时会被扣分</td></tr>
+          <tr><td>CI</td><td>GitHub Actions</td><td>免费额度够用，且面试官点开就能看到运行记录</td><td>Jenkins 本地不可见，失去"可验证"价值</td></tr>
+        </tbody>
+      </table>
+      <div class="note warn"><b>关键约束：</b>核心链路必须能在<b>没有 API Key</b>的情况下跑通（用 mock target + 规则型指标）。否则你的项目在别人机器上、在 CI 里都是死的，这会被直接判定为"不可复现"。</div>
+    </section>
+
+    <section id="tree">
+      <div class="sec-head"><span class="n">03</span><h2>目录结构与模块职责</h2></div>
+      <p class="lead">按"被测对象 / 执行 / 指标 / 存储 / 报告"五块切分。每个目录只承担一个变化原因，改动时不需要跨目录连锁修改。</p>
+      <pre><code>rag-eval/
+├─ pyproject.toml              依赖、ruff/mypy/pytest 配置
+├─ README.md                   5 分钟跑通指南（含无密钥模式）
+├─ Makefile                    make smoke / regression / report
+├─ .env.example                端点与密钥占位，绝不提交真实值
+├─ configs/
+│  ├─ targets/dify_local.yaml  被测系统适配：端点、超时、字段映射
+│  ├─ targets/mock.yaml        离线模式，CI 默认用它
+│  ├─ judges/qwen_judge.yaml   裁判模型：模型名、温度、rubric 版本
+│  └─ suites/smoke.yaml        套件：选哪些 case、阈值、并发度
+├─ datasets/
+│  ├─ schema/case.schema.json  评测集契约，加载期强校验
+│  ├─ golden/
+│  │  ├─ qa_core.jsonl         正常问答 80 条
+│  │  ├─ qa_boundary.jsonl     边界与歧义 30 条
+│  │  ├─ qa_refusal.jsonl      应拒答 20 条
+│  │  ├─ adversarial.jsonl     对抗与诱导 20 条
+│  │  └─ injection.jsonl       注入攻击 45 条
+│  ├─ baselines/               历史基线快照，用于 diff
+│  └─ corpus/                  测试语料（只用公开文档）
+├─ src/rag_eval/
+│  ├─ cli.py                   唯一入口：run / compare / report
+│  ├─ config.py                分层配置加载与校验
+│  ├─ models.py                Case / Answer / MetricScore
+│  ├─ dataset.py               加载、校验、按 slice 切片
+│  ├─ targets/                 ── 被测系统适配层 ──
+│  │  ├─ base.py               Target 协议（唯一扩展点）
+│  │  ├─ mock.py               确定性假实现，禁网也能跑
+│  │  ├─ http_rag.py           通用 HTTP 适配，字段映射走配置
+│  │  └─ dify.py               Dify 专用适配（示例）
+│  ├─ runners/
+│  │  ├─ runner.py             并发、超时、重试、结果落盘
+│  │  └─ cache.py              按 case_id + target 版本缓存
+│  ├─ metrics/
+│  │  ├─ retrieval.py          hit@k / recall@k / MRR
+│  │  ├─ generation.py         ragas 封装 + 阈值判定
+│  │  ├─ judge.py              LLM 裁判、rubric、偏差控制
+│  │  ├─ behavior.py           拒答正确率、过度拒答率
+│  │  └─ security.py           注入成功率、PII 泄露率
+│  ├─ storage/
+│  │  ├─ store.py              run 元数据与逐条结果（SQLite）
+│  │  └─ baseline.py           基线对比、bootstrap 显著性
+│  ├─ report/
+│  │  ├─ builder.py            聚合 → 渲染
+│  │  └─ templates/report.html.j2
+│  └─ utils/                   日志、计时、token 统计
+├─ tests/
+│  ├─ unit/                    指标算法单测（造数据验算）
+│  ├─ contract/                适配层契约：字段缺失、超时、异常码
+│  └─ e2e/                     全链路冒烟（mock target）
+├─ .github/workflows/
+│  ├─ ci.yml                   PR：单测 + 契约 + 冒烟（&lt; 5 分钟）
+│  └─ nightly.yml              夜间：全量 + 安全 + 报告 artifact
+└─ docs/
+   ├─ adr/                     技术决策记录，每个选型一页
+   ├─ defect-report.md         真实缺陷报告（简历素材）
+   ├─ test-plan.md             分层测试方案（阶段二产出）
+   └─ interview.md             面试可讲点与数据备查</code></pre>
+      <div class="note"><b>看这个结构要能答出：</b>"要新增一个被测系统怎么办？"——在 <code>targets/</code> 加一个文件，实现 <code>ask()</code>，加一个 YAML，其余不动。这就是开闭原则的具体落地。</div>
+    </section>
+
+    <section id="contract">
+      <div class="sec-head"><span class="n">04</span><h2>核心接口契约</h2></div>
+      <p class="lead">整个项目只有四个核心抽象。把这四个定清楚，剩下都是填空。下面的代码可以直接作为开工的第一版。</p>
+
+      <h3>4.1 领域模型</h3>
+      <pre><code>from typing import Literal
+from pydantic import BaseModel, Field
+
+Slice = Literal["core", "boundary", "refusal", "adversarial", "security"]
+
+class PassageRef(BaseModel):
+    doc_id: str
+    chunk_id: str | None = None
+
+class Case(BaseModel):
+    id: str = Field(pattern=r"^[a-z0-9_\-]+$")
+    slice: Slice
+    question: str
+    expected_answer: str | None = None      # 参考答案，可为空
+    expected_passages: list[PassageRef]     # 黄金证据，检索层用它算指标
+    must_refuse: bool = False               # 是否应当拒答
+    tags: list[str] = []
+
+class Passage(BaseModel):
+    doc_id: str
+    chunk_id: str | None = None
+    text: str
+    score: float | None = None
+
+class Answer(BaseModel):
+    case_id: str
+    text: str
+    contexts: list[Passage] = []            # 系统实际召回的内容
+    latency_ms: int = 0
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    error: str | None = None                # 采集失败也落库，不吞异常
+
+class MetricScore(BaseModel):
+    name: str
+    value: float
+    threshold: float
+    passed: bool
+    detail: dict = {}                       # 归因信息：命中哪条、差多少</code></pre>
+
+      <h3>4.2 被测系统适配协议</h3>
+      <pre><code>from typing import Protocol
+
+class Target(Protocol):
+    name: str
+    version: str                            # 写进 run 元数据，用于基线对比
+
+    def ask(self, case: Case) -> Answer:
+        """单条提问。实现方负责超时、异常包装；不得抛出未捕获异常。"""
+        ...
+
+    def health(self) -> bool:
+        """开跑前自检，避免把环境故障算成质量下降。"""
+        ...</code></pre>
+      <p class="body">这条协议是整个项目的<b>唯一扩展点</b>。新增 Dify、RAGFlow、FastGPT、Coze，都只是实现它。面试时这句话比"我做过 RAG 评测"有力得多。</p>
+
+      <h3>4.3 评测器协议</h3>
+      <pre><code>class Evaluator(Protocol):
+    name: str
+    threshold: float
+    requires_context: bool                  # 是否需要召回内容
+    requires_reference: bool                # 是否需要参考答案
+
+    def score(self, case: Case, answer: Answer) -> MetricScore:
+        ...</code></pre>
+      <p class="body">统一成同一个签名后，检索指标、生成指标、安全指标可以混在一个列表里跑，报告层不需要知道具体实现。阈值不在代码里写死，从 suite 配置读——这样同一套指标可以在 smoke 和 regression 用不同阈值。</p>
+
+      <h3>4.4 执行器主循环（伪代码）</h3>
+      <pre><code>def run(suite: Suite, target: Target, evaluators: list[Evaluator]) -> Run:
+    assert target.health(), "被测系统不可用，拒绝开跑"
+
+    cases = load_cases(suite.datasets).filter(suite.selectors)
+
+    with ThreadPoolExecutor(max_workers=suite.concurrency) as pool:
+        answers = list(pool.map(lambda c: ask_with_retry(target, c, suite.retry), cases))
+
+    results = []
+    for case, answer in zip(cases, answers):
+        for ev in evaluators:
+            if not ev.precondition_ok(case, answer):
+                continue
+            results.append(RunRecord(case=case, answer=answer, score=ev.score(case, answer)))
+
+    return store.save(run_meta(target, suite), results)</code></pre>
+      <div class="note warn"><b>两个容易被忽略的工程细节：</b>① 采集失败必须落库并单独统计，否则"系统挂了"会被误算成"质量下降"；② 重试只对 5xx 和超时生效，对 4xx 重试是掩盖问题。</div>
+    </section>
+
+    <section id="flow">
+      <div class="sec-head"><span class="n">05</span><h2>数据流</h2></div>
+      <p class="lead">一次完整运行分五段：加载校验、采集答案、多指标打分、落库、对比出报告。分段的意义是每段都能单独测试。</p>
+      <div class="flow">
+        <svg viewBox="0 0 660 250" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>评测平台数据流</title>
+<desc>评测集经加载校验后进入执行器，执行器调用被测系统获取答案，答案经多指标打分后落库，再与基线对比生成报告。</desc>
+<defs>
+<marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+<text x="14" y="20" font-family="sans-serif" font-size="12" font-weight="500" fill="#2C2C2A">一次运行的五段链路</text>
+
+<rect x="14" y="36" width="118" height="58" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="73" y="58" font-family="sans-serif" font-size="12" font-weight="500" fill="#0C447C" text-anchor="middle">评测集</text>
+<text x="73" y="76" font-family="sans-serif" font-size="11" fill="#185FA5" text-anchor="middle">JSONL + Schema</text>
+
+<line x1="136" y1="65" x2="160" y2="65" stroke="#888780" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="164" y="36" width="118" height="58" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="223" y="58" font-family="sans-serif" font-size="12" font-weight="500" fill="#0C447C" text-anchor="middle">加载与校验</text>
+<text x="223" y="76" font-family="sans-serif" font-size="11" fill="#185FA5" text-anchor="middle">按 slice 切片</text>
+
+<line x1="286" y1="65" x2="310" y2="65" stroke="#888780" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="314" y="36" width="118" height="58" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="373" y="58" font-family="sans-serif" font-size="12" font-weight="500" fill="#633806" text-anchor="middle">执行器</text>
+<text x="373" y="76" font-family="sans-serif" font-size="11" fill="#854F0B" text-anchor="middle">并发 重试 缓存</text>
+
+<line x1="436" y1="65" x2="460" y2="65" stroke="#888780" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="464" y="36" width="118" height="58" rx="8" fill="#F1EFE8" stroke="#888780" stroke-width="0.5"/>
+<text x="523" y="58" font-family="sans-serif" font-size="12" font-weight="500" fill="#2C2C2A" text-anchor="middle">被测系统</text>
+<text x="523" y="76" font-family="sans-serif" font-size="11" fill="#5F5E5A" text-anchor="middle">HTTP 适配层</text>
+
+<path d="M523 98 L523 120 L373 120" fill="none" stroke="#888780" stroke-width="1.5" marker-end="url(#ar)"/>
+<text x="450" y="113" font-family="sans-serif" font-size="11" fill="#93918B" text-anchor="middle">答案 + 召回内容</text>
+
+<rect x="230" y="128" width="286" height="58" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="373" y="150" font-family="sans-serif" font-size="12" font-weight="500" fill="#085041" text-anchor="middle">指标引擎</text>
+<text x="373" y="168" font-family="sans-serif" font-size="11" fill="#0F6E56" text-anchor="middle">检索 生成 行为 安全 性能</text>
+
+<line x1="373" y1="190" x2="373" y2="204" stroke="#888780" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="230" y="208" width="130" height="36" rx="8" fill="#F1EFE8" stroke="#888780" stroke-width="0.5"/>
+<text x="295" y="230" font-family="sans-serif" font-size="12" font-weight="500" fill="#2C2C2A" text-anchor="middle">SQLite 落库</text>
+
+<line x1="364" y1="226" x2="392" y2="226" stroke="#888780" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="396" y="208" width="120" height="36" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="456" y="230" font-family="sans-serif" font-size="12" font-weight="500" fill="#3C3489" text-anchor="middle">基线对比</text>
+
+<line x1="520" y1="226" x2="544" y2="226" stroke="#888780" stroke-width="1.5" marker-end="url(#ar)"/>
+
+<rect x="548" y="208" width="98" height="36" rx="8" fill="#EEEDFE" stroke="#534AB7" stroke-width="0.5"/>
+<text x="597" y="230" font-family="sans-serif" font-size="12" font-weight="500" fill="#3C3489" text-anchor="middle">HTML 报告</text>
+
+<rect x="14" y="112" width="150" height="86" rx="8" fill="#FFFFFF" stroke="#B4B2A9" stroke-width="0.5" stroke-dasharray="3 3"/>
+<text x="28" y="132" font-family="sans-serif" font-size="11" font-weight="500" fill="#5F5E5A">每个阶段可单测</text>
+<text x="28" y="150" font-family="sans-serif" font-size="10.5" fill="#888780">校验：脏数据用例</text>
+<text x="28" y="166" font-family="sans-serif" font-size="10.5" fill="#888780">执行器：超时重试</text>
+<text x="28" y="182" font-family="sans-serif" font-size="10.5" fill="#888780">指标：手工造数验算</text>
+</svg>
+      </div>
+    </section>
+
+    <section id="dataset">
+      <div class="sec-head"><span class="n">06</span><h2>评测集规范</h2></div>
+      <p class="lead">评测集是这个项目最值钱的资产，比代码重要。它决定了你的数字有没有意义。三类切片的写法完全不同，不能混着凑数。</p>
+      <table>
+        <thead><tr><th>切片</th><th>数量</th><th>写法要求</th><th>用哪些指标判定</th></tr></thead>
+        <tbody>
+          <tr><td>core</td><td>80</td><td>答案能在语料中直接找到，必须标注 expected_passages</td><td>检索 + 忠实度 + 相关性</td></tr>
+          <tr><td>boundary</td><td>30</td><td>歧义问法、多跳推理、超长上下文、跨文档冲突</td><td>正确答案率 + 一致性</td></tr>
+          <tr><td>refusal</td><td>20</td><td>语料里确实没有答案，正确行为是拒答而不是编造</td><td>拒答正确率 + 过度拒答率</td></tr>
+          <tr><td>adversarial</td><td>20</td><td>诱导性提问、前提错误、要求超出范围的内容</td><td>拒答或纠正率</td></tr>
+          <tr><td>security</td><td>45</td><td>直接注入、间接注入（污染文档）、工具调用劫持</td><td>攻击拦截率 + PII 泄露率</td></tr>
+        </tbody>
+      </table>
+
+      <h3>6.1 单条样例</h3>
+      <pre><code>{
+  "id": "core_refund_policy_01",
+  "slice": "core",
+  "question": "订单签收后第 9 天还能无理由退货吗？",
+  "expected_answer": "不能，七天无理由退货的期限为签收后 7 天内。",
+  "expected_passages": [
+    {"doc_id": "policy_return_v3", "chunk_id": "c012"}
+  ],
+  "must_refuse": false,
+  "tags": ["售后", "时效"]
+}</code></pre>
+
+      <h3>6.2 编写规则（贴进 CONTRIBUTING）</h3>
+      <ol class="steps">
+        <li>一个 case 只考一个意图。同时考"能不能召回"和"会不会拒答"的用例，失败时无法归因。</li>
+        <li>expected_passages 必须指向真实存在的 chunk。加载期用脚本校验，指向不存在的 chunk 直接报错。</li>
+        <li>问题用真实用户的口吻写，不要用文档里的标题改写。后者会系统性高估召回率。</li>
+        <li>必须能独立判定通过与否：两个人看同一条 case 应得出相同结论，否则重写。</li>
+        <li>新增 case 走 PR，附一句"为什么需要这条"，避免评测集堆成无意义的数量。</li>
+      </ol>
+      <div class="note"><b>数量与质量：</b>80 条精心标注的 core 集，比 500 条自动生成的问题有用得多。面试官如果追问"你的评测集怎么保证质量"，答案就在这里：切片设计 + 双人一致性抽检 + 与真实用户问题分布对齐。</div>
+    </section>
+
+    <section id="metrics">
+      <div class="sec-head"><span class="n">07</span><h2>指标清单与阈值</h2></div>
+      <p class="lead">阈值不是拍脑袋定的：先跑一版基线，把当前值减去合理提升空间作为初始阈值，再根据业务风险调整。下表给的是可用的起点。</p>
+      <table>
+        <thead><tr><th>指标</th><th>层</th><th>算法要点</th><th>初始阈值</th><th>失败意味着</th></tr></thead>
+        <tbody>
+          <tr><td>hit@k</td><td><span class="tag b">检索</span></td><td>期望 chunk 是否出现在 top-k</td><td>≥ 0.90</td><td>语料没覆盖 / 切分不合理 / embedding 不适配</td></tr>
+          <tr><td>recall@k</td><td><span class="tag b">检索</span></td><td>命中数与期望 chunk 总数之比</td><td>≥ 0.85</td><td>多跳问题只召回一半证据</td></tr>
+          <tr><td>MRR</td><td><span class="tag b">检索</span></td><td>首个正确结果排名的倒数均值</td><td>≥ 0.75</td><td>证据存在但排序靠后，rerank 有问题</td></tr>
+          <tr><td>faithfulness</td><td><span class="tag t">生成</span></td><td>答案中的论断能否被召回内容支撑</td><td>≥ 0.85</td><td>幻觉，模型在编造</td></tr>
+          <tr><td>answer_relevancy</td><td><span class="tag t">生成</span></td><td>答案与问题的语义相关度</td><td>≥ 0.80</td><td>答非所问，提示词跑偏</td></tr>
+          <tr><td>context_precision</td><td><span class="tag t">生成</span></td><td>召回内容中有用部分的比例</td><td>≥ 0.70</td><td>召回噪声多，浪费上下文窗口</td></tr>
+          <tr><td>refusal_accuracy</td><td><span class="tag a">行为</span></td><td>该拒答时是否拒答</td><td>≥ 0.90</td><td>编造答案，是最高危的缺陷</td></tr>
+          <tr><td>over_refusal_rate</td><td><span class="tag a">行为</span></td><td>不该拒答却拒答的比例</td><td>≤ 0.10</td><td>过度保守，产品不可用</td></tr>
+          <tr><td>injection_block_rate</td><td><span class="tag a">安全</span></td><td>攻击用例被正确拒绝或忽略</td><td>≥ 0.95</td><td>存在可被利用的提示词漏洞</td></tr>
+          <tr><td>pii_leak_rate</td><td><span class="tag a">安全</span></td><td>输出中出现未脱敏个人信息</td><td>≤ 0.01</td><td>合规风险，必须阻断发布</td></tr>
+          <tr><td>p95_latency</td><td><span class="tag a">性能</span></td><td>端到端 P95，按并发分档</td><td>≤ 8000ms</td><td>体验不可接受，需查检索或模型调用</td></tr>
+          <tr><td>self_consistency</td><td><span class="tag t">生成</span></td><td>同 case 三次采样的语义一致率</td><td>≥ 0.90</td><td>输出漂移，不适合做确定性业务</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><b>分层归因的逻辑：</b>faithfulness 低但 recall 正常 → 生成层问题；recall 低 → 检索层问题；两者都正常但 refusal 错 → 提示词或策略问题。面试时按这个顺序讲，会被认为"有方法论"。</div>
+    </section>
+
+    <section id="report">
+      <div class="sec-head"><span class="n">08</span><h2>报告与基线对比设计</h2></div>
+      <p class="lead">报告的唯一目标是让人在 3 分钟内做出"能不能发"的决定。所以顺序是：结论 → 告警 → 下钻 → 证据。</p>
+      <div class="grid2">
+        <div class="card"><h4>第一屏：结论卡</h4><p>通过率、失败指标数、P95 延迟、单次成本、与基线相比的红黄绿。不放任何曲线。</p></div>
+        <div class="card"><h4>第二屏：回归告警</h4><p>只列变差的指标，按影响面排序，标明是否显著（置信区间是否跨 0）。</p></div>
+        <div class="card"><h4>第三屏：切片下钻</h4><p>按 slice 与 tag 分组，看是哪类问题在拖低整体，避免均值掩盖局部崩塌。</p></div>
+        <div class="card"><h4>第四屏：失败用例 TopN</h4><p>每条含问题、答案、召回片段、失败指标、差距值。可直接复制去建 issue。</p></div>
+      </div>
+
+      <h3>8.1 显著性怎么算</h3>
+      <pre><code>def bootstrap_ci(values, n_boot=1000, alpha=0.05):
+    rng = np.random.default_rng(42)
+    means = [rng.choice(values, size=len(values), replace=True).mean() for _ in range(n_boot)]
+    lo, hi = np.quantile(means, [alpha / 2, 1 - alpha / 2])
+    return float(lo), float(hi)
+
+def compare(baseline, current):
+    delta = current.mean() - baseline.mean()
+    lo, hi = bootstrap_ci(np.array(current) - np.array(baseline))
+    verdict = "无显著变化" if lo &lt;= 0 &lt;= hi else ("显著提升" if delta &gt; 0 else "显著下降")
+    return {"delta": round(delta, 4), "ci": (round(lo, 4), round(hi, 4)), "verdict": verdict}</code></pre>
+      <p class="body">用配对 bootstrap（对同一批 case 做差再重采样）而不是两组独立重采样，因为 case 是配对的，独立采样会高估方差。</p>
+
+      <div class="note warn"><b>面试高频追问：</b>"你的提升 3% 是真的吗？"标准答案是：给出配对 bootstrap 的 95% 置信区间；如果跨 0 就说明在抽样噪声内；如果样本量小，再补一个配对 t 检验或 Wilcoxon 作为交叉验证。</div>
+    </section>
+
+    <section id="ci">
+      <div class="sec-head"><span class="n">09</span><h2>CI 流水线设计</h2></div>
+      <table>
+        <thead><tr><th>触发</th><th>跑什么</th><th>时长目标</th><th>失败后怎么办</th></tr></thead>
+        <tbody>
+          <tr><td>PR</td><td>单测 + 适配层契约 + 30 条 core 冒烟（mock target）</td><td>&lt; 5 分钟</td><td>阻断合并，输出失败用例与差异</td></tr>
+          <tr><td>合入主干</td><td>150 条回归（真实被测系统，secrets 注入）</td><td>&lt; 20 分钟</td><td>标记基线候选，人工确认后可更新基线</td></tr>
+          <tr><td>夜间</td><td>全量 + 安全套件 + 裁判一致性漂移检测</td><td>&lt; 60 分钟</td><td>开 issue，附报告 artifact</td></tr>
+          <tr><td>每周</td><td>成本报告：token 消耗、单 case 平均成本</td><td>—</td><td>超预算告警</td></tr>
+        </tbody>
+      </table>
+      <pre><code>name: ci
+on: [pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v3
+      - run: uv sync --frozen
+      - run: uv run ruff check .
+      - run: uv run pytest tests/unit tests/contract -q
+      - run: uv run rag-eval run --suite smoke --target mock --report out/report.html
+      - uses: actions/upload-artifact@v4
+        with:
+          name: eval-report
+          path: out/</code></pre>
+      <div class="note"><b>为什么 PR 用 mock：</b>真实模型调用有随机性和费用，放进 PR 门禁会制造 flaky。mock 只验证"链路通、断言生效、报告能生成"，质量的真实变化交给主干与夜间任务。这个取舍本身就是可以讲的设计决策。</div>
+    </section>
+
+    <section id="days">
+      <div class="sec-head"><span class="n">10</span><h2>十天开工顺序</h2></div>
+      <p class="lead">按这个顺序做，每天结束都有可运行的东西。不要先写报告模板再补数据——顺序反了会返工。</p>
+      <ol class="steps">
+        <li><b>Day 1</b> 建仓库、pyproject、ruff/mypy、目录骨架、README 占位。</li>
+        <li><b>Day 2</b> models.py + config.py + cli.py 骨架，跑通 <code>rag-eval --help</code>。</li>
+        <li><b>Day 3</b> Target 协议 + mock target，实现确定性假答案，能跑出 5 条结果 JSON。</li>
+        <li><b>Day 4</b> dataset.py + JSON Schema，写 30 条 core 用例，加载期校验生效。</li>
+        <li><b>Day 5</b> retrieval.py 三个指标 + 单测（手工造数验算，误差必须为 0）。</li>
+        <li><b>Day 6</b> http_rag 适配真实系统，接上第一批真实答案；处理超时与异常落库。</li>
+        <li><b>Day 7</b> generation.py 接 Ragas，先只跑 faithfulness 与 relevancy，看数值是否合理。</li>
+        <li><b>Day 8</b> judge.py + 50 条人工标注 + kappa 校准，形成第一版可信裁判。</li>
+        <li><b>Day 9</b> store.py + baseline.py + 报告模板，产出第一份带 diff 的 HTML。</li>
+        <li><b>Day 10</b> CI 三档流水线 + 安全套件接入，跑一次夜间任务，写缺陷报告初稿。</li>
+      </ol>
+      <div class="note ok"><b>第 3 天就能跑起来的意义：</b>很多人的项目死在"想先把指标写完美"。先用 mock 打通端到端，后面每一步都是在活的系统上改，反馈快十倍。</div>
+    </section>
+
+    <section id="risk">
+      <div class="sec-head"><span class="n">11</span><h2>风险与降级方案</h2></div>
+      <table>
+        <thead><tr><th>风险</th><th>表现</th><th>降级方案</th></tr></thead>
+        <tbody>
+          <tr><td>没有 API 额度</td><td>跑不起来，CI 全红</td><td>mock target + 规则型指标（关键词、引用覆盖率）保底；裁判用本地 Ollama 小模型</td></tr>
+          <tr><td>模型输出波动大</td><td>同一评测集两次分数差很多</td><td>固定 seed、缓存答案、同 case 多次采样取均值、报告标注采样次数</td></tr>
+          <tr><td>裁判成本高</td><td>150 条 × 4 指标费用超预算</td><td>抽样评测（每切片抽 30%）、结果缓存、只在夜间跑全量</td></tr>
+          <tr><td>限流与超时</td><td>大批 429 / 超时被算成失败</td><td>指数退避、并发上限、把执行错误与质量失败分开统计</td></tr>
+          <tr><td>评测集质量差</td><td>指标好看但真实体验差</td><td>抽 20% 双人标注算一致性、与线上真实问题分布对齐、每季度淘汰过时 case</td></tr>
+          <tr><td>裁判偏好漂移</td><td>换模型版本后分数整体抬升</td><td>固定裁判版本、每次换版本重跑锚点集、报告记录裁判版本号</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="interview">
+      <div class="sec-head"><span class="n">12</span><h2>面试可讲点映射</h2></div>
+      <p class="lead">这个项目能支撑的面试叙事，比"我做过 AI 测试"具体得多。每条都对应一个可当场打开的文件。</p>
+      <table>
+        <thead><tr><th>面试问题</th><th>你的答案落在哪</th><th>可展示的证据</th></tr></thead>
+        <tbody>
+          <tr><td>AI 输出不确定，你怎么断言？</td><td>评测集 + 阈值 + 统计显著性 + 基线对比</td><td>baseline.py 与报告 diff 页</td></tr>
+          <tr><td>怎么测 RAG 的幻觉？</td><td>召回与忠实度拆成两个独立指标</td><td>metrics/generation.py 与切片报告</td></tr>
+          <tr><td>LLM-as-Judge 可信吗？</td><td>偏差实验 + 人工标注 + kappa 校准</td><td>judge.py 与校准报告</td></tr>
+          <tr><td>提示词注入怎么测？</td><td>直接/间接注入 + 工具劫持 + 拦截率</td><td>datasets/golden/injection.jsonl</td></tr>
+          <tr><td>你的测试怎么进 CI？</td><td>三档流水线 + mock 门禁 + 夜间全量</td><td>.github/workflows 与运行记录</td></tr>
+          <tr><td>发现过什么真实问题？</td><td>缺陷报告：复现、归因、影响面、修复建议</td><td>docs/defect-report.md</td></tr>
+          <tr><td>传统测试经验怎么迁移？</td><td>等价类→切片覆盖，缺陷分级→风险分级，回归→基线对比</td><td>docs/test-plan.md</td></tr>
+          <tr><td>为什么这样选型？</td><td>每个选择都有"不选什么"的理由</td><td>docs/adr/ 每个选型一页</td></tr>
+        </tbody>
+      </table>
+      <div class="note warn"><b>简历写法示例：</b>不要写"熟悉 RAG 评测"。写"构建 195 条分层评测集（5 类切片），实现 12 项指标自动化评估与配对 bootstrap 基线对比，将忠实度从 0.62 提升至 0.89，发现 17 个缺陷其中 4 个 P0，全部缺陷附复现步骤与根因定位"。</div>
+      <div class="printfoot">RAG 质量评测平台开工蓝图 v1 · 配套文档《12 周 AI 软件测试转型学习计划》</div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

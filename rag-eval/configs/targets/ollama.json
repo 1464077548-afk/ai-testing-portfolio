@@ -1,0 +1,14 @@
+{
+  "kind": "openai_compat",
+  "name": "ollama-qwen",
+  "version": "local",
+  "base_url": "http://localhost:11434/v1",
+  "model": "qwen2.5:7b-instruct",
+  "api_key_env": "OLLAMA_API_KEY",
+  "temperature": 0.0,
+  "timeout": 120,
+  "mapping": {
+    "answer_path": "choices.0.message.content",
+    "contexts_path": null
+  }
+}

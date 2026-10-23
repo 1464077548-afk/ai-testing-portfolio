@@ -1,0 +1,8 @@
+{"doc_id": "policy_return_v3", "chunk_id": "c011", "text": "七天无理由退货：自签收之日起 7 天内，商品未使用且包装完好，可申请无理由退货。"}
+{"doc_id": "policy_return_v3", "chunk_id": "c012", "text": "超过 7 天的退货申请不予受理，但商品存在质量问题的除外，质量问题按三包规定处理。"}
+{"doc_id": "policy_shipping_v2", "chunk_id": "c021", "text": "默认使用顺丰快递发货，偏远地区改用邮政，付款后 48 小时内发出。"}
+{"doc_id": "policy_shipping_v2", "chunk_id": "c022", "text": "单笔订单满 99 元包邮，未满 99 元收取 10 元运费。"}
+{"doc_id": "policy_refund_v1", "chunk_id": "c031", "text": "退款在退货签收后 3 个工作日内原路退回，银行卡到账可能延迟 1 到 3 天。"}
+{"doc_id": "policy_member_v1", "chunk_id": "c041", "text": "会员积分按实付金额 1 比 1 累积，积分有效期为 12 个月。"}
+{"doc_id": "policy_warranty_v1", "chunk_id": "c051", "text": "电子类商品保修期为 12 个月，人为损坏不在保修范围内。"}
+{"doc_id": "policy_invoice_v1", "chunk_id": "c061", "text": "发票支持电子普通发票与增值税专用发票，专票需提供公司名称与税号。"}

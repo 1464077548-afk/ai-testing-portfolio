@@ -1,0 +1,109 @@
+# GitLab CE 单机部署（Docker Desktop / WSL2 后端）
+#
+# 为什么是 Docker：GitLab CE 官方只提供 Linux 包，没有 Windows 原生安装方式。
+# Docker Desktop 的 Linux 容器跑在 WSL2 上，所以 Windows 本机唯一可行路径就是这样。
+#
+# 内存：默认配置会拉起 Prometheus / Grafana / Alertmanager 等监控组件，
+# 单机练手环境下面全都关掉，实测能省 1.5~2GB 常驻内存。
+
+services:
+  gitlab:
+    # 练手用 latest 即可；正经环境必须锁定具体版本并做升级演练
+    image: gitlab/gitlab-ce:latest
+    container_name: gitlab-ce
+    restart: unless-stopped
+    hostname: gitlab.local
+    stop_grace_period: 5m
+
+    environment:
+      # 初始 root 密码。GitLab 16+ 支持该环境变量，24 小时后会过期，
+      # 请在首次登录后立即改成正式密码并创建 API token。
+      #
+      # 这个值不能随手写成 GitlabQA@2026 之类：
+      # GitLab 19 的密码策略会拒绝"常见词组合"（gitlab / password / admin 等），
+      # 而 seed 失败是**静默**的 —— 实例能正常打开登录页，但库里一个用户都没有。
+      # 部署脚本会在签发 Token 前检查管理员是否存在，缺了就补跑 seed。
+      GITLAB_ROOT_PASSWORD: "${GITLAB_ROOT_PASSWORD:?请先在 gitlab-qa/.env 中设置 GITLAB_ROOT_PASSWORD}"
+      GITLAB_ROOT_EMAIL: "root@gitlab.local"
+
+      GITLAB_OMNIBUS_CONFIG: |
+        # 地址必须与实际访问方式一致，否则 clone 链接、重定向、OAuth 回调全会错。
+        # 本机默认 localhost:8929；装到 Linux 服务器时改这个环境变量即可：
+        #   GITLAB_EXTERNAL_URL=http://192.168.1.50:8929 docker compose up -d
+        # 端口要保持 8929，和下面的 ports 映射一致。
+        external_url '${GITLAB_EXTERNAL_URL:-http://localhost:8929}'
+        gitlab_rails['gitlab_shell_ssh_port'] = 2222
+        gitlab_rails['time_zone'] = 'Asia/Shanghai'
+
+        # 监控栈：单机不需要，关掉能省一大截内存
+        #
+        # 注意：这里只能写当前镜像版本**支持**的键。
+        # omnibus 的配置校验是严格模式，写一个不存在的键会在 reconfigure 阶段
+        # 直接抛 Mixlib::Config::UnknownConfigOptionError 然后退出，
+        # 容器表现为不停重启、日志里翻不到"内存不足"之类的明显原因。
+        # 例：grafana 这个键在 GitLab 19 已被移除（内置 Grafana 下线），
+        #     老教程里的 grafana['enable'] = false 会让新镜像起不来。
+        # 查看某个镜像支持哪些键：
+        #   docker run --rm --entrypoint sh gitlab/gitlab-ce:latest -c \
+        #     "grep -oE \"attribute\('[a-z_]+'\" /opt/gitlab/embedded/cookbooks/package/libraries/config/gitlab.rb"
+        prometheus['enable'] = false
+        prometheus_monitoring['enable'] = false
+        alertmanager['enable'] = false
+        node_exporter['enable'] = false
+        redis_exporter['enable'] = false
+        postgres_exporter['enable'] = false
+        gitlab_exporter['enable'] = false
+
+        # 应用规格裁剪
+        puma['worker_processes'] = 2
+        puma['min_threads'] = 1
+        puma['max_threads'] = 4
+        puma['worker_timeout'] = 120
+        sidekiq['concurrency'] = 4
+        postgresql['shared_buffers'] = '256MB'
+        postgresql['max_worker_processes'] = 4
+        nginx['worker_processes'] = 2
+
+        # 允许自动化脚本通过 API 创建 token（默认已开，显式声明避免版本差异）
+        gitlab_rails['allow_local_requests_from_hooks_and_services'] = true
+
+    ports:
+      # 容器内 nginx 的监听端口由 external_url 的端口决定，所以两边必须一致：
+      # 只改宿主端口会导致容器里还在听 8929，映射到别处就永远连不上。
+      - "${GITLAB_HOST_PORT:-8929}:${GITLAB_HOST_PORT:-8929}"   # Web UI 与 REST API
+      - "2222:22"     # SSH，避开本机 22 端口
+
+    volumes:
+      # 用命名卷而不是 bind mount：
+      # Windows 的 bind mount 需要 Docker Desktop 开启对应盘符的文件共享，
+      # 且 NTFS 上的 PostgreSQL 性能很差。命名卷落在 WSL2 的 ext4 里，两者都解决。
+      - gitlab-config:/etc/gitlab
+      - gitlab-logs:/var/log/gitlab
+      - gitlab-data:/var/opt/gitlab
+
+    shm_size: "256m"
+
+    healthcheck:
+      # /-/health 在 GitLab 19 上返回 404（该端点已下线），只判它会永远 unhealthy。
+      # 用登录页兜底：能 200 说明 nginx 与 puma 都活着，这已经够用了。
+      test: ["CMD-SHELL", "curl -fsS -o /dev/null http://localhost:${GITLAB_HOST_PORT:-8929}/-/health || curl -fsS -o /dev/null http://localhost:${GITLAB_HOST_PORT:-8929}/users/sign_in || exit 1"]
+      interval: 30s
+      timeout: 15s
+      retries: 40
+      start_period: 300s   # 首次启动要跑数据库迁移与初始化，5 分钟内不算失败
+
+    deploy:
+      resources:
+        # 这里给的是实验室下限，不是推荐值。
+        # 实测：关掉监控栈后 4G 能跑起来，但 Sidekiq 与 Puma 会互相挤兑，
+        # 表现为页面时快时慢、偶发 502——很容易被误判成测试框架不稳定。
+        # 机器内存富余的话用 -MemoryLimit 8G 部署，症状会明显缓解。
+        limits:
+          memory: ${GITLAB_MEM_LIMIT:-6G}
+        reservations:
+          memory: ${GITLAB_MEM_RESERVATION:-3G}
+
+volumes:
+  gitlab-config:
+  gitlab-logs:
+  gitlab-data:

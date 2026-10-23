@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>12 周 AI 软件测试转型学习计划</title>
+<style>
+:root{
+  --bg:#FFFFFF; --surface:#FAFAF8; --surface2:#F3F2ED;
+  --line:rgba(0,0,0,0.12); --line2:rgba(0,0,0,0.06);
+  --text:#1F1F1E; --muted:#6B6A66; --faint:#93918B;
+  --p1:#185FA5; --p1bg:#E6F1FB;
+  --p2:#0F6E56; --p2bg:#E1F5EE;
+  --p3:#854F0B; --p3bg:#FAEEDA;
+  --p4:#534AB7; --p4bg:#EEEDFE;
+  --radius:10px;
+}
+*{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:14px;line-height:1.65;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-weight:500;letter-spacing:0}
+p{margin:0}
+a{color:inherit;text-decoration:none}
+
+.shell{display:grid;grid-template-columns:228px minmax(0,1fr);max-width:1180px;margin:0 auto}
+.side{position:sticky;top:0;height:100vh;padding:28px 18px;border-right:1px solid var(--line2)}
+.brand{display:flex;align-items:center;gap:9px;margin-bottom:22px}
+.brand svg{flex:none}
+.brand b{font-size:14px;font-weight:500;line-height:1.35}
+.brand span{display:block;font-size:11px;color:var(--faint);font-weight:400}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;font-size:13px;color:var(--muted)}
+.nav a:hover{background:var(--surface2);color:var(--text)}
+.nav a .dot{width:7px;height:7px;border-radius:50%;flex:none}
+.nav a small{margin-left:auto;font-size:11px;color:var(--faint)}
+
+main{padding:36px 40px 80px;min-width:0}
+
+.hero{margin-bottom:8px}
+.eyebrow{font-size:11px;letter-spacing:.08em;color:var(--faint);text-transform:uppercase}
+h1{font-size:26px;margin:8px 0 10px;line-height:1.3}
+.sub{font-size:14px;color:var(--muted);max-width:64ch}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chip{font-size:12px;padding:3px 10px;border-radius:20px;background:var(--surface2);color:var(--muted);border:1px solid var(--line2)}
+
+.progwrap{display:flex;align-items:center;gap:16px;margin:22px 0 6px;padding:16px 18px;border:1px solid var(--line2);border-radius:12px;background:var(--surface)}
+.ring{flex:none}
+.progtext{flex:1;min-width:0}
+.progtext b{font-size:13px;font-weight:500;display:block;margin-bottom:6px}
+.bar{height:6px;border-radius:3px;background:rgba(0,0,0,0.08);overflow:hidden}
+.bar i{display:block;height:100%;width:0;background:var(--p2);transition:width .25s}
+.prognum{font-variant-numeric:tabular-nums;font-size:12px;color:var(--muted);margin-top:6px}
+.toolbar{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+.btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:7px 12px;border-radius:7px;
+  border:1px solid var(--line);background:#fff;color:var(--text);cursor:pointer;font-family:inherit}
+.btn:hover{background:var(--surface2)}
+.btn.ghost{background:transparent;color:var(--muted)}
+
+section{margin-top:44px;scroll-margin-top:20px}
+.phase-head{display:flex;align-items:baseline;gap:12px;padding-bottom:10px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.phase-head .num{font-size:11px;letter-spacing:.08em;color:var(--faint)}
+.phase-head h2{font-size:18px}
+.phase-head .range{margin-left:auto;font-size:12px;color:var(--faint);font-variant-numeric:tabular-nums}
+.lead{font-size:13px;color:var(--muted);margin-bottom:18px;max-width:72ch}
+
+.week{border:1px solid var(--line2);border-radius:var(--radius);margin-bottom:14px;overflow:hidden;background:#fff}
+.week.open{border-color:var(--line)}
+.wh{display:flex;align-items:center;gap:12px;padding:12px 16px;background:var(--surface);border-bottom:1px solid var(--line2)}
+.wk{font-size:12px;font-weight:500;font-variant-numeric:tabular-nums;padding:2px 8px;border-radius:5px;flex:none}
+.wt{flex:1;min-width:0}
+.wt h3{font-size:14px}
+.wt p{font-size:12px;color:var(--muted);margin-top:2px}
+.hrs{font-size:11px;color:var(--faint);flex:none;font-variant-numeric:tabular-nums}
+.wbody{display:grid;grid-template-columns:1.25fr 1fr;gap:0}
+.col{padding:14px 16px}
+.col+.col{border-left:1px solid var(--line2)}
+h4{font-size:11px;letter-spacing:.06em;color:var(--faint);text-transform:uppercase;margin-bottom:8px}
+h4:not(:first-child){margin-top:16px}
+ol,ul{margin:0;padding-left:18px}
+ol li,ul li{font-size:13px;margin-bottom:5px;color:#33322F}
+ol li::marker{color:var(--faint);font-size:12px}
+.out{font-size:13px;color:#33322F;padding:9px 11px;background:var(--surface);border-left:2px solid var(--line);border-radius:0 6px 6px 0}
+ul.check{list-style:none;padding:0}
+ul.check li{display:flex;gap:8px;align-items:flex-start;margin-bottom:6px;font-size:12.5px;color:#33322F}
+ul.check input{margin:3px 0 0;flex:none;width:14px;height:14px;accent-color:var(--p2);cursor:pointer}
+ul.check label{cursor:pointer}
+ul.check input:checked+label{color:var(--faint);text-decoration:line-through}
+
+.phase1 .wk{background:var(--p1bg);color:var(--p1)}
+.phase2 .wk{background:var(--p2bg);color:var(--p2)}
+.phase3 .wk{background:var(--p3bg);color:var(--p3)}
+.phase4 .wk{background:var(--p4bg);color:var(--p4)}
+.phase1 .out{border-left-color:var(--p1)}
+.phase2 .out{border-left-color:var(--p2)}
+.phase3 .out{border-left-color:var(--p3)}
+.phase4 .out{border-left-color:var(--p4)}
+
+.gate{display:flex;align-items:flex-start;gap:10px;padding:12px 14px;border-radius:8px;background:var(--surface);border:1px dashed var(--line);margin-top:4px}
+.gate input{margin-top:3px;width:14px;height:14px;accent-color:var(--p2);flex:none;cursor:pointer}
+.gate div{font-size:12.5px;color:var(--muted)}
+.gate b{font-weight:500;color:var(--text);display:block;margin-bottom:2px;font-size:13px}
+
+table{width:100%;border-collapse:collapse;font-size:13px;margin-top:4px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2);vertical-align:top}
+th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--faint);font-weight:500}
+td:first-child{white-space:nowrap;color:var(--muted);font-variant-numeric:tabular-nums}
+tr:last-child td{border-bottom:none}
+
+.note{padding:14px 16px;border-radius:10px;background:var(--surface);border:1px solid var(--line2);font-size:13px;color:#33322F;margin-top:14px}
+.note b{font-weight:500}
+.note.warn{background:#FCEBEB;border-color:rgba(163,45,45,.2)}
+.note.warn b{color:#791F1F}
+
+.mobbar{display:none}
+
+@media (max-width:980px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line2);padding:16px 20px}
+  .brand{margin-bottom:12px}
+  .nav{flex-direction:row;overflow-x:auto;gap:4px;padding-bottom:2px}
+  .nav a{white-space:nowrap;font-size:12.5px;padding:6px 10px}
+  .nav a small{display:none}
+  main{padding:26px 20px 90px}
+  h1{font-size:22px}
+}
+@media (max-width:640px){
+  body{font-size:14px}
+  .wbody{grid-template-columns:1fr}
+  .col+.col{border-left:none;border-top:1px solid var(--line2)}
+  .side .nav{display:none}
+  .side{padding:14px 16px}
+  main{padding:20px 16px 92px}
+  .mobbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;
+    background:rgba(255,255,255,.96);border-top:1px solid var(--line);backdrop-filter:blur(8px);z-index:20}
+  .mobbar a{display:flex;flex-direction:column;align-items:center;gap:3px;padding:8px 2px 10px;font-size:10px;color:var(--faint)}
+  .mobbar a.on{color:var(--p1)}
+  .progwrap{padding:12px 14px}
+}
+
+@media print{
+  @page{size:A4;margin:14mm 13mm}
+  body{font-size:10.5pt;line-height:1.5}
+  .shell{display:block;max-width:none}
+  .side,.mobbar,.toolbar{display:none !important}
+  main{padding:0}
+  h1{font-size:20pt;margin:0 0 6pt}
+  .sub{font-size:10pt}
+  .progwrap{border:none;background:none;padding:0;margin:10pt 0 4pt}
+  .bar,.ring,.prognum{display:none}
+  section{margin-top:16pt}
+  .phase-head{margin-bottom:10pt;padding-bottom:5pt}
+  .phase-head h2{font-size:14pt}
+  .phase{break-before:page}
+  .phase:first-of-type{break-before:auto}
+  .week{break-inside:avoid;page-break-inside:avoid;margin-bottom:8pt;border-color:#ddd}
+  .wh{padding:7pt 10pt;background:#F7F7F4 !important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .wt h3{font-size:11pt}
+  .wt p,.hrs{font-size:9pt}
+  .col{padding:8pt 10pt}
+  ol li,ul li,.out{font-size:9.5pt}
+  ul.check li{font-size:9pt}
+  table{font-size:9.5pt}
+  th,td{padding:4pt 6pt}
+  .note{font-size:9.5pt;padding:8pt 10pt;break-inside:avoid}
+  a{color:inherit}
+  .printfoot{display:block !important;margin-top:14pt;font-size:8.5pt;color:#888;border-top:1px solid #ddd;padding-top:6pt}
+}
+.printfoot{display:none}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <svg width="26" height="26" viewBox="0 0 26 26" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="24" height="24" rx="7" stroke="#185FA5" stroke-width="1.2"/>
+        <path d="M7 13.5L11 17.5L19 8.5" stroke="#0F6E56" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <b>AI 测试转型计划<span>12 周 · 4 阶段</span></b>
+    </div>
+    <nav class="nav" id="nav">
+      <a href="#overview"><span class="dot" style="background:#B4B2A9"></span>总览与里程碑</a>
+      <a href="#p1"><span class="dot" style="background:var(--p1)"></span>阶段一 工程底座<small>W1–4</small></a>
+      <a href="#p2"><span class="dot" style="background:var(--p2)"></span>阶段二 AI 认知<small>W5–8</small></a>
+      <a href="#p3"><span class="dot" style="background:var(--p3)"></span>阶段三 项目实战<small>W9–11</small></a>
+      <a href="#p4"><span class="dot" style="background:var(--p4)"></span>阶段四 面试定向<small>W12</small></a>
+      <a href="#rhythm"><span class="dot" style="background:#B4B2A9"></span>每周节奏</a>
+    </nav>
+  </aside>
+
+  <main>
+    <header class="hero">
+      <div class="eyebrow">功能测试 → AI 测试岗</div>
+      <h1>12 周 AI 软件测试转型学习计划</h1>
+      <p class="sub">每周 13 小时，4 个阶段递进。每个阶段以一份可展示的产出物收口，最终形成一条能被面试官验证的证据链：能写工程化测试、能测 AI 系统质量、有开源实战记录。</p>
+      <div class="meta">
+        <span class="chip">总计约 156 小时</span>
+        <span class="chip">工作日 5×1h + 周末 2×4h</span>
+        <span class="chip">产出物 12 项</span>
+        <span class="chip">自检项 40 条</span>
+      </div>
+    </header>
+
+    <div class="progwrap">
+      <svg class="ring" width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
+        <circle cx="23" cy="23" r="19" fill="none" stroke="rgba(0,0,0,0.08)" stroke-width="4"/>
+        <circle id="ringFg" cx="23" cy="23" r="19" fill="none" stroke="#0F6E56" stroke-width="4"
+          stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="119.4"
+          transform="rotate(-90 23 23)" style="transition:stroke-dashoffset .25s"/>
+      </svg>
+      <div class="progtext">
+        <b>学习进度</b>
+        <div class="bar"><i id="barFg"></i></div>
+        <div class="prognum"><span id="progTxt">0 / 40 项自检已完成</span> · 勾选状态自动保存在本机</div>
+      </div>
+    </div>
+    <div class="toolbar">
+      <button class="btn" onclick="window.print()">
+        <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+          <path d="M4.5 5.5V2.5h7v3M4.5 12.5H3a1 1 0 01-1-1v-4a1 1 0 011-1h10a1 1 0 011 1v4a1 1 0 01-1 1h-1.5" stroke="#1F1F1E" stroke-width="1.2" stroke-linecap="round"/>
+          <rect x="4.5" y="9.5" width="7" height="4" rx=".6" stroke="#1F1F1E" stroke-width="1.2"/>
+        </svg>
+        打印 / 导出 PDF
+      </button>
+      <button class="btn ghost" onclick="resetAll()">重置进度</button>
+    </div>
+
+    <section id="overview">
+      <div class="phase-head">
+        <span class="num">OVERVIEW</span>
+        <h2>总览：四个阶段怎么串起来</h2>
+      </div>
+      <p class="lead">阶段一解决"能不能写"，阶段二解决"懂不懂 AI"，阶段三解决"有没有证据"，阶段四解决"会不会讲"。任何一段跳过，面试都会在对应环节暴露。</p>
+      <table>
+        <thead><tr><th>阶段</th><th>周次</th><th>核心问题</th><th>收口产出</th><th>验收标准</th></tr></thead>
+        <tbody>
+          <tr><td>一 工程底座</td><td>W1–W4</td><td>能不能写出别人能跑的测试代码</td><td>带 CI 门禁的接口测试仓库</td><td>clone 后一条命令跑通并出报告</td></tr>
+          <tr><td>二 AI 认知</td><td>W5–W8</td><td>知不知道 AI 系统哪里会坏</td><td>分层测试方案 + 指标实验记录</td><td>能把一次答错定位到具体层</td></tr>
+          <tr><td>三 项目实战</td><td>W9–W11</td><td>有没有可验证的实战证据</td><td>RAG 评测平台 + 缺陷报告 + PR</td><td>有量化指标、有真实缺陷、进了 CI</td></tr>
+          <tr><td>四 面试定向</td><td>W12</td><td>能不能讲清楚并且被录用</td><td>量化简历 + 6 个 STAR 故事</td><td>3 分钟讲透主线项目</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><b>时间纪律：</b>每周只允许一个"未完成的产出物"。宁可把 W7 的 judge 校准做扎实，也不要把 W7、W8 各做一半——项目实战阶段会把这个欠账放大成讲不清的空白。</div>
+    </section>
+
+    <section class="phase phase1" id="p1">
+      <div class="phase-head">
+        <span class="num">PHASE 01</span>
+        <h2>工程底座：把测试写成工程</h2>
+        <span class="range">W1 – W4 · 52h</span>
+      </div>
+      <p class="lead">这一阶段不要碰 AI。目标只有一个：让别人 clone 你的仓库，一条命令跑完全部测试并拿到报告。没这个底子，后面所有 AI 指标都只是脚本 demo。</p>
+
+      <div class="note"><b>优先用本地靶场：</b>同目录的 <code>api-lab/</code> 是一个已跑通的练手仓库（79 条用例，内置本地 REST 靶机，不联网、不装 Docker），覆盖 W1–W4 全部能力点：conftest 三层分层、fixture 作用域对照实验、三种参数化、marker 分组、xdist / rerunfailures / html 插件、令牌状态机、数据工厂与清理、pydantic + jsonschema + OpenAPI 三层契约、CI 三档流水线。配套说明见《阶段一工程底座练手手册》。<b>建议先把它跑通并改坏几次</b>，再用下面的公网靶场验证同样能力——公网靶场受网络与限流影响，不适合做 CI 里的唯一依赖。</div>
+
+      <table>
+        <thead><tr><th>周次</th><th>练手靶子</th><th>练什么</th><th>选它的理由</th></tr></thead>
+        <tbody>
+          <tr><td>W1</td><td>httpbin + JSONPlaceholder</td><td>fixture 分层、状态码、断言结构</td><td>零门槛、免注册，先把工程骨架跑通</td></tr>
+          <tr><td>W2</td><td>Restful-booker</td><td>token 鉴权、CRUD、yield 清理</td><td>有完整的鉴权与数据生命周期，契约清晰</td></tr>
+          <tr><td>W3</td><td>DummyJSON</td><td>参数化、分页、异常分支、并行</td><td>业务字段真实，适合练断言设计与 flaky 治理</td></tr>
+          <tr><td>W4</td><td>Practice Software Testing</td><td>全栈套件 + CI 门禁 + 缺陷报告</td><td>可 Docker 本地跑，自带已知缺陷可练归因</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><b>用法：</b>每周只挑一个靶子，做完"能跑 + 能进 CI"再换。靶子只是载体，练的是你自己的仓库结构。完整清单、真实开源仓库补测试的路径、以及"第一个 PR 怎么提"，见同目录《Dify 适配接入手册 &amp; 阶段一练手清单》。</div>
+
+      <article class="week">
+        <div class="wh"><span class="wk">W1</span><div class="wt"><h3>环境与 pytest 工程化</h3><p>搭出一个 clone 即可运行的测试仓库骨架</p></div><span class="hrs">13h</span></div>
+        <div class="wbody">
+          <div class="col"><h4>任务</h4><ol>
+            <li>装 uv + Python 3.11，建 src-layout 项目，配 ruff 与 mypy</li>
+            <li>拆分 conftest 层级：根级放配置日志，api 级放会话 token，e2e 级放浏览器实例</li>
+            <li>吃透 fixture 作用域，写一个 session 级 token fixture 与一个 function 级数据清理 fixture</li>
+            <li>配置 marker：smoke / regression / slow，并让 CI 能按 marker 选择性执行</li>
+            <li>写 10 条对公开 API 的用例，每个用例自带数据准备与清理</li>
+          </ol></div>
+          <div class="col"><h4>产出物</h4><p class="out">可运行仓库 + README（含一条命令跑全量的说明）</p>
+            <h4>自检</h4><ul class="check">
+              <li><input type="checkbox" id="c1" data-k="w1a"><label for="c1">能在 1 小时内从零搭出这套目录结构</label></li>
+              <li><input type="checkbox" id="c2" data-k="w1b"><label for="c2">能解释 token fixture 为什么用 session 而非 function</label></li>
+              <li><input type="checkbox" id="c3" data-k="w1c"><label for="c3">用例打乱顺序执行仍然全部通过</label></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="week">
+        <div class="wh"><span class="wk">W2</span><div class="wt"><h3>接口测试硬功</h3><p>鉴权、数据依赖、契约校验，三样都要能独立处理</p></div><span class="hrs">13h</span></div>
+        <div class="wbody">
+          <div class="col"><h4>任务</h4><ol>
+            <li>鉴权链路：cookie / token 刷新 / 并发下 token 失效的重试逻辑</li>
+            <li>用 yield fixture 做数据工厂，保证退出即清理；验证清理失败不会污染后续用例</li>
+            <li>响应校验：pydantic 模型校验结构，jsonschema 校验外部契约</li>
+            <li>错误分支：断言错误码与错误体结构，不硬编码文案</li>
+            <li>把浏览器 DevTools 里的真实请求批量转成 httpx 用例</li>
+          </ol></div>
+          <div class="col"><h4>产出物</h4><p class="out">20 条覆盖 CRUD 与异常分支的接口用例</p>
+            <h4>自检</h4><ul class="check">
+              <li><input type="checkbox" id="c4" data-k="w2a"><label for="c4">断言校验的是结构和语义，不是写死的字符串</label></li>
+              <li><input type="checkbox" id="c5" data-k="w2b"><label for="c5">用例失败时能一眼判断是环境、数据还是代码问题</label></li>
+              <li><input type="checkbox" id="c6" data-k="w2c"><label for="c6">我的用例可以重复执行，不依赖库里已有数据</label></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="week">
+        <div class="wh"><span class="wk">W3</span><div class="wt"><h3>参数化、并行与不稳定用例</h3><p>让套件快起来，并且稳定到可以当门禁</p></div><span class="hrs">13h</span></div>
+        <div class="wbody">
+          <div class="col"><h4>任务</h4><ol>
+            <li>parametrize + param(id=, marks=) 做到用例名可读、可筛</li>
+            <li>pytest-xdist 并行，用独立账号池解决共享资源冲突</li>
+            <li>建 flaky 清单：区分真缺陷、环境抖动、用例设计缺陷三类</li>
+            <li>失败现场留证：请求响应落盘、日志分级、--tb=short 输出</li>
+            <li>跑 pytest-cov，找出"有代码没用例"的分支并补上</li>
+          </ol></div>
+          <div class="col"><h4>产出物</h4><p class="out">100 条用例并行 &lt; 2 分钟；一份 flaky 归因清单</p>
+            <h4>自检</h4><ul class="check">
+              <li><input type="checkbox" id="c7" data-k="w3a"><label for="c7">能说清"重试是止血，不是修复"</label></li>
+              <li><input type="checkbox" id="c8" data-k="w3b"><label for="c8">并行执行时用例之间没有顺序依赖</label></li>
+              <li><input type="checkbox" id="c9" data-k="w3c"><label for="c9">失败日志能独立定位问题，不需要重跑</label></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="week">
+        <div class="wh"><span class="wk">W4</span><div class="wt"><h3>CI 门禁与报告</h3><p>这是"会写脚本"和"会做质量工程"的分水岭</p></div><span class="hrs">13h</span></div>
+        <div class="wbody">
+          <div class="col"><h4>任务</h4><ol>
+            <li>GitHub Actions：matrix、依赖缓存、secrets、artifact 上传</li>
+            <li>分层触发：PR 跑 smoke，合入主干跑 regression，夜间全量</li>
+            <li>pytest-html 出报告，失败自动在 PR 留言并附报告链接</li>
+            <li>质量门禁：用例失败即阻断；关键模块覆盖率低于阈值即阻断</li>
+            <li>写一份 CI 说明文档：为什么这样分层、失败怎么处理</li>
+          </ol></div>
+          <div class="col"><h4>产出物</h4><p class="out">带徽章的仓库 + 一次真实拦截 PR 的记录</p>
+            <h4>自检</h4><ul class="check">
+              <li><input type="checkbox" id="c10" data-k="w4a"><label for="c10">PR 页面能直接看到结果与报告</label></li>
+              <li><input type="checkbox" id="c11" data-k="w4b"><label for="c11">能解释为什么 smoke 放 PR、全量放夜间</label></li>
+              <li><input type="checkbox" id="c12" data-k="w4c"><label for="c12">我经历过一次门禁拦截并处理了它</label></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <div class="gate">
+        <input type="checkbox" id="g1" data-k="gate1">
+        <div><b>阶段一准出</b>不看学习时长，只看一件事：把仓库链接发给一个不熟的同行，他能在 10 分钟内跑起来。</div>
+      </div>
+    </section>
+
+    <section class="phase phase2" id="p2">
+      <div class="phase-head">
+        <span class="num">PHASE 02</span>
+        <h2>AI 认知：建立"哪里会坏"的心智模型</h2>
+        <span class="range">W5 – W8 · 52h</span>
+      </div>
+      <p class="lead">不要从 Transformer 数学开始。这四周只回答三个问题：AI 输出为什么不确定、一次答错该归因到哪一层、怎么把"感觉不对"变成可比较的数字。</p>
+
+      <article class="week">
+        <div class="wh"><span class="wk">W5</span><div class="wt"><h3>LLM 基础与不确定性</h3><p>先亲眼看到"同样的输入，输出不一样"</p></div><span class="hrs">13h</span></div>
+        <div class="wbody">
+          <div class="col"><h4>任务</h4><ol>
+            <li>搞清 token、上下文窗口、temperature / top_p、system prompt 的影响边界</li>
+            <li>固定一个问题采样 20 次，记录答案差异率、语义相似度、长度分布</li>
+            <li>把幻觉分成四类：事实错误、张冠李戴、过度自信、编造引用，各找两个真实例子</li>
+            <li>验证 temperature=0 是否真的稳定，记录反例</li>
+            <li>写一页结论：为什么 assert 相等在这里失效，我的替代方案是什么</li>
+          </ol></div>
+          <div class="col"><h4>产出物</h4><p class="out">不确定性实验记录（含 20 次采样原始数据）</p>
+            <h4>自检</h4><ul class="check">
+              <li><input type="checkbox" id="c13" data-k="w5a"><label for="c13">能解释 temperature=0 为何仍不保证一致</label></li>
+              <li><input type="checkbox" id="c14" data-k="w5b"><label for="c14">能说出四类幻觉及各自的检测思路</label></li>
+              <li><input type="checkbox" id="c15" data-k="w5c"><label for="c15">我能自己设计一组采样实验来观察方差</label></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="week">
+        <div class="wh"><span class="wk">W6</span><div class="wt"><h3>RAG 架构与检索层指标</h3><p>手算一遍指标，比调用框架学到得多</p></div><span class="hrs">13h</span></div>
+        <div class="wbody">
+          <div class="col"><h4>任务</h4><ol>
+            <li>走通一条链路：文档 → 切分 → embedding → 向量库 → top-k → rerank → 生成</li>
+            <li>不用框架，手写 hit@k、recall@k、MRR 的计算脚本</li>
+            <li>对比 chunk size 256 / 512 / 1024 对召回的影响，记录实验数据</li>
+            <li>构造 30 条带标注 passage 的问题，算出检索指标基线</li>
+            <li>刻意制造两类错误：检索错 vs 生成错，练习归因</li>
+          </ol></div>
+          <div class="col"><h4>产出物</h4><p class="out">检索评测小实验 + 自研指标计算脚本</p>
+            <h4>自检</h4><ul class="check">
+              <li><input type="checkbox" id="c16" data-k="w6a"><label for="c16">能手算 MRR 并说清它与 hit@k 的差别</label></li>
+              <li><input type="checkbox" id="c17" data-k="w6b"><label for="c17">拿到一个错答案，能判断是召回还是生成的问题</label></li>
+              <li><input type="checkbox" id="c18" data-k="w6c"><label for="c18">能解释切分粒度为什么影响召回</label></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="week">
+        <div class="wh"><span class="wk">W7</span><div class="wt"><h3>生成层评测与 LLM-as-Judge</h3><p>本阶段最难也最值钱的一周</p></div><span class="hrs">13h</span></div>
+        <div class="wbody">
+          <div class="col"><h4>任务</h4><ol>
+            <li>ragas 跑通 faithfulness、answer_relevancy、context_precision、context_recall</li>
+            <li>做 judge 偏差实验：换选项顺序看结果是否翻转（位置偏差），加长答案看分数是否虚高（长度偏好）</li>
+            <li>人工标注 50 条，与 judge 结果算 Cohen's kappa</li>
+            <li>kappa 低于 0.6 就重写 rubric，再测一次，记录两版差异</li>
+            <li>做一次 pairwise 对比：新版 prompt vs 旧版，看谁赢更多</li>
+          </ol></div>
+          <div class="col"><h4>产出物</h4><p class="out">judge 校准报告（含 kappa 数值与三类偏差实验结论）</p>
+            <h4>自检</h4><ul class="check">
+              <li><input type="checkbox" id="c19" data-k="w7a"><label for="c19">能说出 judge 的三类偏差与对应控制手段</label></li>
+              <li><input type="checkbox" id="c20" data-k="w7b"><label for="c20">知道 kappa 多少算可用、低于多少必须改 rubric</label></li>
+              <li><input type="checkbox" id="c21" data-k="w7c"><label for="c21">能用数据说明"我的 judge 可信"</label></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="week">
+        <div class="wh"><span class="wk">W8</span><div class="wt"><h3>安全、性能与测试方案</h3><p>把前四周学的东西收成一份能拿出手的方案</p></div><span class="hrs">13h</span></div>
+        <div class="wbody">
+          <div class="col"><h4>任务</h4><ol>
+            <li>攻击面梳理：直接注入、间接注入（RAG 文档污染）、工具调用劫持，各造 15 条用例</li>
+            <li>PII 检测：正则 + 简单 NER，验证输出是否泄露手机号、邮箱、身份证号</li>
+            <li>性能与成本：P95 延迟、首 token 时间、并发 20 的降级曲线、单次查询 token 成本</li>
+            <li>写《XX 系统 AI 质量测试方案》：范围、分层策略、指标与阈值、准入准出</li>
+            <li>找一个开源 RAG 项目，通读它的测试目录，列出缺口</li>
+          </ol></div>
+          <div class="col"><h4>产出物</h4><p class="out">8 页测试方案 + 45 条安全用例 + 一份测试缺口清单</p>
+            <h4>自检</h4><ul class="check">
+              <li><input type="checkbox" id="c22" data-k="w8a"><label for="c22">我的方案能回答"上线标准到底是什么"</label></li>
+              <li><input type="checkbox" id="c23" data-k="w8b"><label for="c23">能给出 3 个具体攻击样例并说明检测方法</label></li>
+              <li><input type="checkbox" id="c24" data-k="w8c"><label for="c24">我知道该项目的测试缺口在哪，以及怎么补</label></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <div class="gate">
+        <input type="checkbox" id="g2" data-k="gate2">
+        <div><b>阶段二准出</b>给一个陌生 AI 应用，能在 2 小时内写出它的分层测试方案，并说清每层用什么指标、阈值定多少、依据是什么。</div>
+      </div>
+    </section>
+
+    <section class="phase phase3" id="p3">
+      <div class="phase-head">
+        <span class="num">PHASE 03</span>
+        <h2>项目实战：做出可验证的证据</h2>
+        <span class="range">W9 – W11 · 39h</span>
+      </div>
+      <p class="lead">主线项目只做一个：RAG 问答系统的质量评测平台。配套动作是给开源项目补测试、提 PR——面试官信第三方证据，不信自建 demo。项目结构见同目录的《开工蓝图》。</p>
+
+      <article class="week">
+        <div class="wh"><span class="wk">W9</span><div class="wt"><h3>骨架与评测集</h3><p>先让空壳跑起来，再往里填内容</p></div><span class="hrs">13h</span></div>
+        <div class="wbody">
+          <div class="col"><h4>任务</h4><ol>
+            <li>按蓝图搭目录，先跑通 mock target（无 API key 也能跑通全链路）</li>
+            <li>评测集 150 条：正常 80 / 边界 30 / 拒答 20 / 对抗 20</li>
+            <li>每条 case 必须写清 expected_passages 与可判定的通过标准</li>
+            <li>加 JSONL schema 校验，脏数据在加载期就报错</li>
+            <li>跑出第一份结果 JSON，哪怕指标只有两三个</li>
+          </ol></div>
+          <div class="col"><h4>产出物</h4><p class="out">v0.1 可运行 + 150 条带标注评测集</p>
+            <h4>自检</h4><ul class="check">
+              <li><input type="checkbox" id="c25" data-k="w9a"><label for="c25">换个被测系统只改配置，不改代码</label></li>
+              <li><input type="checkbox" id="c26" data-k="w9b"><label for="c26">每条 case 的通过与否，别人能独立判定</label></li>
+              <li><input type="checkbox" id="c27" data-k="w9c"><label for="c27">CI 里没有密钥也能跑通冒烟子集</label></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="week">
+        <div class="wh"><span class="wk">W10</span><div class="wt"><h3>指标链路与基线对比</h3><p>让报告能回答"这次改动变好了还是变差了"</p></div><span class="hrs">13h</span></div>
+        <div class="wbody">
+          <div class="col"><h4>任务</h4><ol>
+            <li>检索、生成、行为三类指标统一成 MetricScore 结构</li>
+            <li>SQLite 存运行历史，支持任意两次运行对比</li>
+            <li>基线 diff：绝对差值 + bootstrap 置信区间，跨 0 判"无显著变化"</li>
+            <li>HTML 报告：总览卡、切片下钻、失败 TopN（含上下文）、与基线 diff</li>
+            <li>找 3 个真实用户，让他们读报告并说出结论，记录卡点</li>
+          </ol></div>
+          <div class="col"><h4>产出物</h4><p class="out">一份 3 分钟能看懂的评测报告</p>
+            <h4>自检</h4><ul class="check">
+              <li><input type="checkbox" id="c28" data-k="w10a"><label for="c28">报告有切片下钻，不只给一个总分</label></li>
+              <li><input type="checkbox" id="c29" data-k="w10b"><label for="c29">能解释"提升了 3% 是否显著"</label></li>
+              <li><input type="checkbox" id="c30" data-k="w10c"><label for="c30">别人看报告能定位到具体失败用例</label></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <article class="week">
+        <div class="wh"><span class="wk">W11</span><div class="wt"><h3>安全套件、CI 与真实 PR</h3><p>把项目从"我能跑"变成"别人能用"</p></div><span class="hrs">13h</span></div>
+        <div class="wbody">
+          <div class="col"><h4>任务</h4><ol>
+            <li>安全套件接入夜间任务，输出按严重度分级的漏洞清单</li>
+            <li>CI 三档：PR 冒烟、主干回归、夜间全量 + 安全</li>
+            <li>在开源 RAG 项目里找 3 个真实缺陷，写可复现的缺陷报告</li>
+            <li>至少提 1 个 PR（补测试、修 bug、补文档均可）并跟进回复</li>
+            <li>写 docs/defect-report.md：复现步骤、根因定位、修复建议、影响面</li>
+          </ol></div>
+          <div class="col"><h4>产出物</h4><p class="out">3 个缺陷案例 + 1 个已提交 PR + 全绿 CI</p>
+            <h4>自检</h4><ul class="check">
+              <li><input type="checkbox" id="c31" data-k="w11a"><label for="c31">我的缺陷报告别人能照着复现</label></li>
+              <li><input type="checkbox" id="c32" data-k="w11b"><label for="c32">能定位缺陷属于数据、检索、编排还是模型层</label></li>
+              <li><input type="checkbox" id="c33" data-k="w11c"><label for="c33">我维护者沟通过，并理解了他们的取舍</label></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <div class="gate">
+        <input type="checkbox" id="g3" data-k="gate3">
+        <div><b>阶段三准出</b>把仓库链接和缺陷报告发出去，对方能看懂你在测什么、测出了什么、为什么这算问题。做不到就回炉，不要进面试阶段。</div>
+      </div>
+    </section>
+
+    <section class="phase phase4" id="p4">
+      <div class="phase-head">
+        <span class="num">PHASE 04</span>
+        <h2>面试定向：把经历翻译成录用理由</h2>
+        <span class="range">W12 · 13h</span>
+      </div>
+      <p class="lead">技术到位但讲不清，等于没有。这一周只做四件事：改简历、写故事、模拟面试、开始投递。</p>
+
+      <article class="week">
+        <div class="wh"><span class="wk">W12</span><div class="wt"><h3>简历量化、STAR 表达与投递</h3><p>把 11 周的产出压缩成 3 分钟能听懂的话</p></div><span class="hrs">13h</span></div>
+        <div class="wbody">
+          <div class="col"><h4>任务</h4><ol>
+            <li>简历改成量化版：3 个项目，每个都有数字、技术栈、你的职责边界</li>
+            <li>准备 6 个高频题的 STAR 稿，每题 90 秒，录音回听并改到不啰嗦</li>
+            <li>模拟面试 2 次：一次同行对练，一次自问自答录屏复盘</li>
+            <li>投递 20 家，建追踪表：岗位类型、反馈、被问倒的问题</li>
+            <li>把被问倒的问题补成答案，形成个人题库</li>
+          </ol></div>
+          <div class="col"><h4>产出物</h4><p class="out">简历 v2 + 6 个 STAR 故事 + 投递追踪表</p>
+            <h4>自检</h4><ul class="check">
+              <li><input type="checkbox" id="c34" data-k="w12a"><label for="c34">3 分钟能讲完主线项目：问题、方案、结果</label></li>
+              <li><input type="checkbox" id="c35" data-k="w12b"><label for="c35">简历上每个数字我都能追溯到实验记录</label></li>
+              <li><input type="checkbox" id="c36" data-k="w12c"><label for="c36">被问到不会的，我能诚实且有结构地回答</label></li>
+            </ul>
+          </div>
+        </div>
+      </article>
+
+      <div class="gate">
+        <input type="checkbox" id="g4" data-k="gate4">
+        <div><b>阶段四准出</b>连续三次模拟面试中，面试官的问题都能落回你准备过的三个项目；被问到陌生场景时，你能用分层的思路现场拆解。</div>
+      </div>
+
+      <div class="note warn"><b>常见翻车点：</b>把"我熟悉 AI 测试"写在简历上，却说不出一个具体指标的名称和阈值来源。任何写在简历上的能力，都必须对应一个你能当场打开的仓库或报告。</div>
+    </section>
+
+    <section id="rhythm">
+      <div class="phase-head">
+        <span class="num">RHYTHM</span>
+        <h2>每周节奏与时间分配</h2>
+      </div>
+      <p class="lead">13 小时不是"有空就学"，而是固定档期。建议把动手任务放在工作日晚上，把需要连续思考的任务放在周末。</p>
+      <table>
+        <thead><tr><th>时段</th><th>时长</th><th>做什么</th><th>注意</th></tr></thead>
+        <tbody>
+          <tr><td>周一至周五</td><td>5 × 1h</td><td>读文档、写代码、跑实验</td><td>只做能在 1 小时内收尾的小块任务</td></tr>
+          <tr><td>周六上午</td><td>4h</td><td>本周主产出物的攻坚</td><td>关掉消息，一次只做一件事</td></tr>
+          <tr><td>周日上午</td><td>3h</td><td>补齐自检、写复盘笔记</td><td>笔记只写"卡在哪、怎么解决"</td></tr>
+          <tr><td>周日晚</td><td>1h</td><td>预习下周，准备环境与资料</td><td>避免周一从零启动</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><b>进度落后怎么办：</b>砍范围，不砍阶段。宁可把评测集从 150 条降到 80 条，也要保住"指标链路 + 基线对比 + CI"这条主线。因为面试官考的是结构，不是条目数量。</div>
+      <div class="printfoot">12 周 AI 软件测试转型计划 · 配套文档《RAG 评测平台开工蓝图》</div>
+    </section>
+  </main>
+</div>
+
+<nav class="mobbar" id="mobbar">
+  <a href="#overview"><svg width="17" height="17" viewBox="0 0 16 16" fill="none"><rect x="2" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="2" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="2" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/><rect x="9" y="9" width="5" height="5" rx="1" stroke="currentColor" stroke-width="1.2"/></svg>总览</a>
+  <a href="#p1"><svg width="17" height="17" viewBox="0 0 16 16" fill="none"><path d="M4 13V7M8 13V3M12 13V9" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>阶段一</a>
+  <a href="#p2"><svg width="17" height="17" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="3" stroke="currentColor" stroke-width="1.2"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>阶段二</a>
+  <a href="#p3"><svg width="17" height="17" viewBox="0 0 16 16" fill="none"><path d="M3 13l1-3.5L11.5 2 14 4.5 6.5 12 3 13z" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg>阶段三</a>
+  <a href="#p4"><svg width="17" height="17" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5.5" r="2.5" stroke="currentColor" stroke-width="1.2"/><path d="M3 14c0-2.8 2.2-4.5 5-4.5s5 1.7 5 4.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/></svg>阶段四</a>
+</nav>
+
+<script>
+(function(){
+  var KEY = 'ai-test-plan-progress-v1';
+  var state = {};
+  try { state = JSON.parse(localStorage.getItem(KEY) || '{}') || {}; } catch (e) { state = {}; }
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('input[data-k]'));
+
+  function render(){
+    var done = boxes.filter(function(b){ return b.checked; }).length;
+    var total = boxes.length;
+    var pct = total ? done / total : 0;
+    var bar = document.getElementById('barFg');
+    var ring = document.getElementById('ringFg');
+    var txt = document.getElementById('progTxt');
+    if (bar) bar.style.width = (pct * 100).toFixed(1) + '%';
+    if (ring) ring.setAttribute('stroke-dashoffset', String((119.4 * (1 - pct)).toFixed(1)));
+    if (txt) txt.textContent = done + ' / ' + total + ' 项自检已完成';
+  }
+
+  boxes.forEach(function(b){
+    if (state[b.dataset.k]) b.checked = true;
+    b.addEventListener('change', function(){
+      state[b.dataset.k] = b.checked;
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+      render();
+    });
+  });
+  render();
+
+  window.resetAll = function(){
+    if (!confirm('清空所有勾选记录？此操作不可撤销。')) return;
+    state = {};
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    boxes.forEach(function(b){ b.checked = false; });
+    render();
+  };
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,255 @@
+# 用 GitLab CI 测 GitLab —— 这套框架跑在它自己的靶子上。
+#
+# 三档流水线对应三种决策：
+#   PR       → 只要冒烟，5 分钟内给结论
+#   主干     → 接口 + UI 全量，含写操作
+#   定时/手动 → 性能，只有固定机器上的数据才有可比性
+#
+# 关键约定：每个 job 都产出 allure-results 作为 artifact，
+# 最后由 report 阶段合并成一份报告。分开跑是为了并行与失败隔离，
+# 但最终给人看的报告必须只有一份。
+
+stages:
+  - check
+  - test
+  - perf
+  - report
+
+variables:
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  GIT_DEPTH: "1"
+  ALLURE_RESULTS: "allure-results"
+
+default:
+  image: python:3.13-slim
+  before_script:
+    - pip install --quiet -e ".[dev]"
+  cache:
+    key: "$CI_JOB_NAME"
+    paths: [".cache/pip"]
+
+# ----------------------------------------------------------------------
+# 框架自检：不要被测系统，最快失败
+# ----------------------------------------------------------------------
+unit:
+  stage: check
+  script:
+    - pytest tests/unit -q --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 3 days
+    paths: ["$ALLURE_RESULTS/"]
+
+# ----------------------------------------------------------------------
+# 冒烟：只读，PR 门禁
+# ----------------------------------------------------------------------
+smoke:
+  stage: test
+  variables:
+    GITLAB_BASE_URL: "$TARGET_URL"
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web"
+  script:
+    - |
+      pytest tests/unit tests/smoke \
+             tests/api/test_contract.py tests/api/test_pagination.py \
+             -q -m "not destructive" --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 3 days
+    paths: ["$ALLURE_RESULTS/"]
+
+# ----------------------------------------------------------------------
+# 靶机全量：不需要真实 GitLab，六层一起跑（含 UI/E2E/性能）
+# 真实实例要 8GB 内存 + 10 分钟启动，PR 上等不起；
+# 这一层保证「框架没坏」，api/ui 那层保证「被测系统没坏」。
+# ----------------------------------------------------------------------
+mock:
+  stage: check
+  before_script:
+    - pip install --quiet -e ".[dev]"
+    - playwright install --with-deps chromium
+  script:
+    - python tools/run.py --suite all --mock
+    - |
+      if python tools/run.py --suite perf --mock --mock-latency-ms 1500 --no-report; then
+        echo "性能门禁没有拦住越界延迟，说明阈值判定失效"; exit 1
+      else
+        echo "性能门禁按预期拦截"
+      fi
+  artifacts:
+    when: always
+    expire_in: 3 days
+    paths: ["$ALLURE_RESULTS/"]
+
+# ----------------------------------------------------------------------
+# 接口全量：起一个真实 GitLab CE 当 service
+# ----------------------------------------------------------------------
+api:
+  stage: test
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web"
+  services:
+    - name: gitlab/gitlab-ce:17.5.0-ce.0
+      alias: gitlab
+      variables:
+        GITLAB_ROOT_PASSWORD: "QaLab@2026"
+  variables:
+    GITLAB_BASE_URL: "http://gitlab"
+    FF_NETWORK_PER_BUILD: "1"
+  before_script:
+    - pip install --quiet -e ".[dev]"
+    - apt-get update -qq && apt-get install -y -qq curl >/dev/null
+    - |
+      for i in $(seq 1 60); do
+        code=$(curl -s -o /dev/null -w '%{http_code}' http://gitlab/-/health || true)
+        [ "$code" = "200" ] && echo "gitlab ready" && break
+        sleep 10
+      done
+  script:
+    - pytest tests/api -q -n 4 --dist loadscope --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 3 days
+    paths: ["$ALLURE_RESULTS/"]
+
+# ----------------------------------------------------------------------
+# UI：Playwright
+# ----------------------------------------------------------------------
+ui:
+  stage: test
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $CI_PIPELINE_SOURCE == "web"
+  variables:
+    GITLAB_BASE_URL: "$TARGET_URL"
+  before_script:
+    - pip install --quiet -e ".[dev]"
+    - playwright install --with-deps chromium
+  script:
+    - pytest tests/ui -q --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 3 days
+    paths: ["$ALLURE_RESULTS/"]
+
+# ----------------------------------------------------------------------
+# 性能：只在定时或手动跑
+# ----------------------------------------------------------------------
+perf:
+  stage: perf
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+  variables:
+    GITLAB_BASE_URL: "$TARGET_URL"
+  script:
+    - pytest tests/perf -q --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths: ["$ALLURE_RESULTS/"]
+
+# ----------------------------------------------------------------------
+# 安全：越权 / 注入 / 泄露 / 暴露面
+# 只在定时或手动跑 —— 它会对目标做写操作（造项目、写 issue），
+# 而且有一条用例的失败代表"实例配置有问题"，不该挡住日常合并。
+#
+# 必须先确保第二身份存在：越权断言缺了它就是假绿（用管理员打管理员端点恒 200）。
+# 所以 ensure_member 失败时让 job 直接红，而不是靠用例 skip 混过去。
+# ----------------------------------------------------------------------
+security:
+  stage: perf
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+    - if: $CI_PIPELINE_SOURCE == "web"
+      when: manual
+  variables:
+    GITLAB_BASE_URL: "$TARGET_URL"
+  script:
+    - python tools/ensure_member.py
+    - pytest tests/security -q --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths: ["$ALLURE_RESULTS/"]
+
+# ----------------------------------------------------------------------
+# 产物治理：定时清掉过期的截图 / trace / 旧报告
+# 用 .post 保证在所有测试阶段之后执行（否则可能删掉本次刚产出的证据）
+# ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
+# 隔离区体检：每次提交都跑。
+# 隔离区一旦变成垃圾桶就救不回来了，所以"缺原因 / 缺期限 / 已到期 / 超限"
+# 必须在当天就被顶到脸上，而不是等它积到 20 条再说
+# ----------------------------------------------------------------------
+quarantine:
+  stage: check
+  script:
+    - python tools/flake.py --check-quarantine
+  allow_failure: false
+
+# ----------------------------------------------------------------------
+# 稳定性采样（夜间）：一次只能回答"现在红还是绿"，
+# 回答不了"这条用例能不能信"——后者必须重复测量
+# 退出码 2 = 持续失败（真缺陷），3 = 抖动超阈值，都会让流水线红
+# ----------------------------------------------------------------------
+flake:
+  stage: perf
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  script:
+    - python tools/flake.py --suite smoke --rounds 5 --max-flake-rate 0.05
+      --json flake-report.json
+  artifacts:
+    when: always
+    paths: [artifacts/flake/, flake-report.json]
+
+cleanup:
+  stage: .post
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "schedule"
+  script:
+    - python tools/cleanup.py --json cleanup-summary.json
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths: ["cleanup-summary.json"]
+
+# ----------------------------------------------------------------------
+# 汇总报告：合并 -> 生成 -> 发布 Pages
+# ----------------------------------------------------------------------
+report:
+  stage: report
+  image:
+    name: frankescobar/allure-docker-service:2.29.0
+    entrypoint: [""]
+  rules:
+    - when: always
+  dependencies: [unit, smoke, mock, api, ui, perf, security]
+  script:
+    - mkdir -p merged
+    - find . -type d -name "$ALLURE_RESULTS" -exec cp -r {}/* merged/ \; 2>/dev/null || true
+    - cp allure/categories.json merged/ 2>/dev/null || true
+    - |
+      cat > merged/executor.json <<EOF
+      {
+        "name": "GitLab CI",
+        "type": "gitlab",
+        "url": "$CI_PIPELINE_URL",
+        "buildName": "#$CI_PIPELINE_ID",
+        "reportName": "GitLab QA · $CI_COMMIT_REF_NAME"
+      }
+      EOF
+    - allure generate merged -o public --clean
+    # 界面汉化：allure 每次重写 index.html，所以必须在 generate 之后执行
+    - python tools/localize_report.py public || echo "汉化失败，报告保持英文"
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - public

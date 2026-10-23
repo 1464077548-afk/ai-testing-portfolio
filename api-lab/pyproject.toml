@@ -1,0 +1,42 @@
+[project]
+name = "apilab"
+version = "0.1.0"
+description = "接口测试工程化练习靶场：pytest 分层、鉴权流转、契约测试、CI 门禁"
+requires-python = ">=3.11"
+dependencies = ["requests>=2.31"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-xdist>=3.5",
+    "pytest-html>=4.1",
+    "pytest-rerunfailures>=14.0",
+    "pydantic>=2.6",
+    "jsonschema>=4.21",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+# --strict-markers：写错 marker 直接报错，避免“标签打了但没生效”
+# --strict-config：配置项拼错直接报错，避免 addopts 静默失效
+addopts = "-ra --strict-markers --strict-config"
+pythonpath = ["src"]
+markers = [
+    "smoke: 冒烟，PR 门禁必跑，30 秒内跑完",
+    "regression: 回归，主干合并前跑",
+    "contract: 契约测试，校验响应结构与 OpenAPI 一致",
+    "destructive: 会写数据的用例，生产环境自动跳过",
+    "slow: 耗时用例，夜间任务才跑",
+    "scope: fixture 作用域演示，用于教学",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:urllib3.*",
+]

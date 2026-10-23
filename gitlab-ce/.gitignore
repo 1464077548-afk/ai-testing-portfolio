@@ -1,0 +1,5 @@
+# 部署脚本产生的运行时文件，不入库
+logs/
+.deploy-state.json
+*.bak-*
+.runner_tmp.rb

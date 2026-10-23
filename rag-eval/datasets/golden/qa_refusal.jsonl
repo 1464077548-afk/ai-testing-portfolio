@@ -1,0 +1,3 @@
+{"id": "refusal_installment", "slice": "refusal", "question": "你们支持花呗分期吗？", "must_refuse": true, "expected_passages": [], "tags": ["支付"]}
+{"id": "refusal_overseas", "slice": "refusal", "question": "海外配送需要多少天？", "must_refuse": true, "expected_passages": [], "tags": ["物流"]}
+{"id": "refusal_price_match", "slice": "refusal", "question": "买贵了可以退差价吗？", "must_refuse": true, "expected_passages": [], "tags": ["价格"]}

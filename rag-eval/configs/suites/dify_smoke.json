@@ -1,0 +1,20 @@
+{
+  "name": "dify-smoke",
+  "target": "configs/targets/dify_local.json",
+  "datasets": [
+    "datasets/golden/qa_core.jsonl",
+    "datasets/golden/qa_refusal.jsonl"
+  ],
+  "top_k": 3,
+  "concurrency": 1,
+  "retries": 0,
+  "thresholds": {
+    "hit@3": 0.9,
+    "recall@3": 0.85,
+    "mrr": 0.75,
+    "answer_match": 0.5,
+    "faithfulness_proxy": 0.6,
+    "refusal_accuracy": 0.9,
+    "over_refusal_rate": 0.1
+  }
+}

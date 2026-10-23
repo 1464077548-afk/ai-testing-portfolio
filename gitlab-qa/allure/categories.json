@@ -1,0 +1,32 @@
+[
+  {
+    "name": "被测系统不可用（环境/服务）",
+    "matchedStatuses": ["broken"],
+    "messageRegex": "(?s).*(ConnectionError|Timeout|ConnectTimeout|Max retries|upstream connect|502|503|504|refused).*"
+  },
+  {
+    "name": "产品缺陷（断言失败）",
+    "matchedStatuses": ["failed"],
+    "messageRegex": "(?s).*AssertionError.*"
+  },
+  {
+    "name": "契约违约（字段/类型漂移）",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": "(?s).*(schema|contract|契约|is not of type|required propert).*"
+  },
+  {
+    "name": "鉴权与权限",
+    "matchedStatuses": ["failed", "broken"],
+    "messageRegex": "(?s).*(401|403|Unauthorized|Forbidden).*"
+  },
+  {
+    "name": "测试代码问题（fixture / 类型错误）",
+    "matchedStatuses": ["broken"],
+    "messageRegex": "(?s).*(fixture '.*' not found|TypeError|AttributeError|KeyError|ImportError|NameError).*"
+  },
+  {
+    "name": "不稳定用例（重试后通过）",
+    "matchedStatuses": ["passed"],
+    "messageRegex": "(?s).*flaky.*"
+  }
+]

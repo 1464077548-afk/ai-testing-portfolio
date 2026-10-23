@@ -1,0 +1,1750 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GitLab CE 测试框架 · 完整学习计划</title>
+<style>
+:root{
+  --bg:#f6f7f9; --surface:#ffffff; --surface-2:#f0f2f5;
+  --border:#e3e6ea; --border-strong:#cfd4da;
+  --text:#1a1d21; --text-2:#4a5158; --text-3:#7a828b;
+  --accent:#2b5c9e; --accent-soft:#e8f0fa;
+  --ok:#1a7f4b; --ok-soft:#e6f4ec;
+  --warn:#a8641a; --warn-soft:#fdf3e3;
+  --risk:#b03030; --risk-soft:#fbeaea;
+  --purple:#6b4fa0; --purple-soft:#efeaf8;
+  --teal:#0f6f78; --teal-soft:#e4f2f3;
+  --radius:10px; --radius-sm:6px;
+  --shadow:0 1px 3px rgba(20,25,35,.07),0 1px 2px rgba(20,25,35,.04);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--bg); color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:15px; line-height:1.72; -webkit-font-smoothing:antialiased;
+}
+svg{display:inline-block;vertical-align:-.15em;flex:none}
+.app{display:grid;grid-template-columns:244px 1fr;min-height:100vh}
+
+/* ---------- 侧边导航（桌面） ---------- */
+.sidebar{
+  position:sticky;top:0;height:100vh;overflow-y:auto;
+  background:var(--surface);border-right:1px solid var(--border);
+  padding:20px 0 32px;
+}
+.brand{padding:0 18px 16px;border-bottom:1px solid var(--border);margin-bottom:14px}
+.brand h1{font-size:15px;font-weight:700;letter-spacing:.2px;line-height:1.4}
+.brand .sub{font-size:12px;color:var(--text-3);margin-top:4px;line-height:1.5}
+.nav-total{
+  margin:12px 18px 6px;padding:9px 11px;background:var(--surface-2);
+  border-radius:var(--radius-sm);font-size:12px;color:var(--text-2);
+}
+.nav-total b{color:var(--accent);font-size:14px}
+.bar{height:5px;background:var(--border);border-radius:3px;overflow:hidden;margin-top:7px}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:3px;transition:width .3s}
+.nav a{
+  display:flex;align-items:center;gap:9px;padding:8px 18px;
+  color:var(--text-2);text-decoration:none;font-size:13.5px;
+  border-left:3px solid transparent;transition:.15s;
+}
+.nav a:hover{background:var(--surface-2);color:var(--text)}
+.nav a.on{background:var(--accent-soft);color:var(--accent);border-left-color:var(--accent);font-weight:600}
+.nav a .dot{width:7px;height:7px;border-radius:50%;flex:none;background:var(--border-strong)}
+.nav a .n{margin-left:auto;font-size:11px;color:var(--text-3);font-variant-numeric:tabular-nums}
+
+/* ---------- 主区 ---------- */
+main{padding:30px 34px 80px;max-width:1000px}
+section{margin-bottom:38px;scroll-margin-top:20px}
+h2{
+  font-size:20px;font-weight:700;letter-spacing:.2px;
+  display:flex;align-items:center;gap:10px;
+  padding-bottom:10px;border-bottom:2px solid var(--border);margin-bottom:6px;
+}
+h2 .idx{
+  background:var(--accent);color:#fff;font-size:12px;font-weight:700;
+  width:24px;height:24px;border-radius:6px;display:grid;place-items:center;flex:none;
+}
+.lead{color:var(--text-2);font-size:14px;margin:10px 0 18px}
+h3{font-size:15.5px;font-weight:700;margin:22px 0 10px;display:flex;align-items:center;gap:7px}
+p{margin:9px 0}
+ul,ol{margin:9px 0 9px 20px}
+li{margin:5px 0}
+code{
+  background:var(--surface-2);border:1px solid var(--border);
+  padding:1px 5px;border-radius:4px;font-size:12.5px;
+  font-family:"SFMono-Regular",Consolas,"Liberation Mono",monospace;color:#8a2b5c;
+}
+pre{
+  background:#fbfcfd;border:1px solid var(--border);border-left:3px solid var(--accent);
+  border-radius:var(--radius-sm);padding:11px 13px;overflow-x:auto;
+  font-family:"SFMono-Regular",Consolas,monospace;font-size:12.5px;line-height:1.65;
+  margin:10px 0;color:var(--text);
+}
+pre .c{color:var(--text-3)}
+
+/* ---------- 卡片 ---------- */
+.card{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px 18px;margin:12px 0;box-shadow:var(--shadow);
+}
+.week{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  margin:14px 0;overflow:hidden;box-shadow:var(--shadow);
+}
+.week-hd{
+  display:flex;align-items:center;gap:11px;padding:13px 17px;
+  background:var(--surface-2);border-bottom:1px solid var(--border);
+}
+.week-hd .wk{
+  font-size:11.5px;font-weight:700;letter-spacing:.4px;
+  background:var(--accent);color:#fff;padding:3px 9px;border-radius:20px;flex:none;
+}
+.week-hd h4{font-size:15px;font-weight:700;flex:1}
+.week-hd .t{font-size:12px;color:var(--text-3);flex:none}
+.week-bd{padding:15px 17px}
+.goal{
+  display:flex;gap:9px;background:var(--accent-soft);border-radius:var(--radius-sm);
+  padding:10px 12px;margin-bottom:13px;font-size:13.5px;color:#1d4478;
+}
+.goal b{flex:none}
+
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.box{border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;background:#fcfdfe}
+.box h5{
+  font-size:12px;font-weight:700;letter-spacing:.4px;color:var(--text-3);
+  text-transform:uppercase;margin-bottom:8px;display:flex;align-items:center;gap:6px;
+}
+.box ul{margin-left:17px;font-size:13.5px}
+.box li{margin:4px 0;color:var(--text-2)}
+.box li b{color:var(--text)}
+
+.note{
+  border-left:3px solid var(--warn);background:var(--warn-soft);
+  padding:10px 13px;border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+  margin:11px 0;font-size:13.5px;color:#6d4310;
+}
+.note.risk{border-left-color:var(--risk);background:var(--risk-soft);color:#7a2020}
+.note.ok{border-left-color:var(--ok);background:var(--ok-soft);color:#145c36}
+.note b{display:block;margin-bottom:3px;font-size:13px}
+
+table{width:100%;border-collapse:collapse;margin:11px 0;font-size:13.5px;background:var(--surface)}
+th,td{border:1px solid var(--border);padding:8px 11px;text-align:left;vertical-align:top}
+th{background:var(--surface-2);font-weight:600;font-size:12.5px;color:var(--text-2)}
+td code{font-size:12px}
+tbody tr:nth-child(even){background:#fbfcfd}
+
+/* ---------- 勾选清单 ---------- */
+.check{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;border-radius:var(--radius-sm);transition:.12s;cursor:pointer}
+.check:hover{background:var(--surface-2)}
+.check input{
+  width:16px;height:16px;margin-top:3px;flex:none;cursor:pointer;
+  accent-color:var(--accent);
+}
+.check span{font-size:13.5px;color:var(--text-2);line-height:1.6}
+.check input:checked + span{color:var(--text-3);text-decoration:line-through}
+.chk-group{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:8px 10px;margin:10px 0}
+.chk-hd{font-size:12px;font-weight:700;color:var(--text-3);letter-spacing:.3px;padding:4px 8px 6px;display:flex;justify-content:space-between}
+.chk-hd em{font-style:normal;color:var(--accent);font-variant-numeric:tabular-nums}
+
+.tag{
+  display:inline-flex;align-items:center;gap:4px;font-size:11.5px;font-weight:600;
+  padding:2px 8px;border-radius:20px;background:var(--surface-2);color:var(--text-2);
+  border:1px solid var(--border);
+}
+.tag.new{background:var(--risk-soft);color:var(--risk);border-color:#f0d4d4}
+.tag.core{background:var(--accent-soft);color:var(--accent);border-color:#cfe0f5}
+
+.stage-map{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:14px 0}
+.stage{
+  background:var(--surface);border:1px solid var(--border);border-top:3px solid var(--accent);
+  border-radius:var(--radius-sm);padding:11px 13px;box-shadow:var(--shadow);
+}
+.stage .w{font-size:11px;font-weight:700;color:var(--accent);letter-spacing:.3px}
+.stage .t{font-size:13.5px;font-weight:600;margin:3px 0 5px}
+.stage .d{font-size:12px;color:var(--text-3);line-height:1.55}
+.stage.p{border-top-color:var(--purple)} .stage.p .w{color:var(--purple)}
+.stage.t{border-top-color:var(--teal)}   .stage.t .w{color:var(--teal)}
+.stage.o{border-top-color:var(--ok)}     .stage.o .w{color:var(--ok)}
+.stage.r{border-top-color:var(--risk)}   .stage.r .w{color:var(--risk)}
+.stage.n{border-top-color:var(--warn)}   .stage.n .w{color:var(--warn)}
+
+/* ---------- 设计原理：架构图 ---------- */
+.arch{
+  background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px 16px;margin:13px 0;overflow-x:auto;box-shadow:var(--shadow);
+}
+.arch svg{display:block;width:100%;height:auto;min-width:620px}
+.arch-cap{font-size:12px;color:var(--text-3);margin-top:9px;line-height:1.6}
+
+/* ---------- 设计原理：原则卡 ---------- */
+.pcard{
+  border:1px solid var(--border);border-radius:var(--radius);
+  padding:13px 15px;margin:11px 0;background:var(--surface);box-shadow:var(--shadow);
+}
+.pcard .ph{display:flex;align-items:center;gap:9px;font-size:14.5px;font-weight:700}
+.pcard .pn{
+  width:22px;height:22px;border-radius:6px;background:var(--accent);color:#fff;
+  font-size:11.5px;font-weight:700;display:grid;place-items:center;flex:none;
+}
+.pcard p{font-size:13.5px;color:var(--text-2);margin:7px 0 0}
+.pcard .kv{
+  display:grid;grid-template-columns:64px 1fr;gap:5px 10px;font-size:13px;
+  margin-top:9px;padding-top:9px;border-top:1px dashed var(--border);
+}
+.pcard .kv dt{color:var(--text-3);font-weight:600}
+.pcard .kv dd{color:var(--text-2)}
+.pcard .kv dd code{font-size:12px}
+
+.footnote{font-size:12.5px;color:var(--text-3);border-top:1px solid var(--border);padding-top:12px;margin-top:24px;line-height:1.7}
+
+/* ---------- 平板：顶部导航 ---------- */
+@media (max-width:1080px){
+  .app{grid-template-columns:1fr}
+  .sidebar{
+    position:sticky;top:0;height:auto;border-right:0;border-bottom:1px solid var(--border);
+    padding:12px 0 0;z-index:20;
+  }
+  .brand{padding:0 16px 10px}
+  .nav-total{margin:0 16px 8px;display:flex;align-items:center;gap:10px}
+  .nav-total .bar{flex:1;margin-top:0}
+  .nav{
+    display:flex;overflow-x:auto;gap:2px;padding:0 16px;
+    -webkit-overflow-scrolling:touch;scrollbar-width:none;
+  }
+  .nav::-webkit-scrollbar{display:none}
+  .nav a{border-left:0;border-bottom:3px solid transparent;padding:8px 12px;white-space:nowrap}
+  .nav a.on{border-left:0;border-bottom-color:var(--accent);background:transparent}
+  .nav a .n{display:none}
+  main{padding:22px 22px 70px}
+}
+
+/* ---------- 手机：底部 Tab ---------- */
+@media (max-width:700px){
+  body{font-size:14.5px}
+  .sidebar{
+    position:fixed;bottom:0;left:0;right:0;top:auto;
+    border-bottom:0;border-top:1px solid var(--border);padding:0;
+    box-shadow:0 -2px 10px rgba(20,25,35,.08);z-index:50;
+  }
+  .brand,.nav-total,.print-btn{display:none}
+  .nav{
+    display:flex;overflow-x:auto;padding:6px 8px;gap:4px;
+    scrollbar-width:none;
+  }
+  .nav::-webkit-scrollbar{display:none}
+  .nav a{
+    flex-direction:column;gap:3px;padding:6px 12px;font-size:11px;
+    border-bottom:0;border-radius:16px;min-width:60px;align-items:center;justify-content:center;
+  }
+  .nav a.on{background:var(--accent);color:#fff}
+  .nav a .dot{display:none}
+  main{padding:18px 15px 96px}
+  h2{font-size:17.5px}
+  .grid2{grid-template-columns:1fr}
+  .stage-map{grid-template-columns:1fr 1fr}
+  pre{font-size:12px}
+  table{font-size:12.5px}
+  th,td{padding:6px 8px}
+}
+
+/* ---------- 屏幕上的打印按钮 ---------- */
+.print-btn{
+  margin:2px 18px 12px;width:calc(100% - 36px);padding:8px 10px;
+  background:var(--surface);border:1px solid var(--border-strong);
+  border-radius:var(--radius-sm);color:var(--text-2);
+  font-size:12.5px;cursor:pointer;display:flex;align-items:center;
+  justify-content:center;gap:7px;font-family:inherit;transition:.15s;
+}
+.print-btn:hover{background:var(--accent-soft);color:var(--accent);border-color:#cfe0f5}
+
+/* 打印封面：屏幕上不显示 */
+.print-cover{display:none}
+
+/* ---------- 打印（A4） ---------- */
+@media print{
+  @page{size:A4;margin:14mm 12mm}
+  html,body{background:#fff}
+  body{font-size:10.5pt;line-height:1.55;color:#000}
+  .app{display:block}
+  .sidebar,.nav,.print-btn{display:none}
+  main{padding:0;max-width:none}
+
+  /* 长章节不能整块 avoid-page：内容超过一页时会被强推到下一页，前面留大片空白 */
+  section{break-inside:auto;page-break-inside:auto;margin-bottom:14pt}
+
+  /* 卡片/表格/代码块尽量不跨页断裂 */
+  .card,.week,.pcard,.box,.note,.chk-group,table,pre,.arch,.stage{
+    break-inside:avoid;page-break-inside:avoid;box-shadow:none;
+  }
+  tr,li,.check{break-inside:avoid;page-break-inside:avoid}
+
+  /* 标题后不许只剩标题 */
+  h2,h3,h4,h5{break-after:avoid;page-break-after:avoid;break-inside:avoid}
+  h2{break-before:auto;page-break-before:auto}
+  p{orphans:3;widows:3}
+
+  /* 图表：min-width 会把页面撑破，必须放开 */
+  .arch{overflow:visible;border:0;padding:0;margin:8pt 0}
+  .arch svg{width:100%!important;height:auto;min-width:0!important;max-width:100%}
+  .arch-cap{font-size:9pt}
+
+  /* 表头跨页重复，读者不用回头找列名 */
+  thead{display:table-header-group}
+  th,td{padding:5pt 6pt;font-size:9.5pt}
+  tbody tr:nth-child(even){background:#fafafa}
+
+  /* 代码块换行而不是横向溢出（横向溢出在纸上直接丢失） */
+  pre{white-space:pre-wrap;word-break:break-word;font-size:9pt}
+
+  /* 勾选框要能用手打勾 */
+  .check{padding:3pt 6pt}
+  .check input{accent-color:#000;width:12px;height:12px}
+  .check span{font-size:10pt}
+  .chk-hd{font-size:9pt}
+
+  a{color:#000;text-decoration:none}
+  .tag{border-color:#bbb;color:#333}
+  .noprint{display:none}
+
+  /* 封面 */
+  .print-cover{
+    display:block;break-after:page;page-break-after:always;
+    padding-top:55mm;text-align:center;
+  }
+  .print-cover .pc-kicker{font-size:10pt;letter-spacing:4px;color:#4a5158}
+  .print-cover h1{font-size:28pt;font-weight:700;margin:8pt 0 6pt;line-height:1.3}
+  .print-cover .pc-sub{font-size:11pt;color:#4a5158}
+  .print-cover .pc-rule{width:40mm;height:2px;background:#2b5c9e;margin:16pt auto}
+  .print-cover .pc-meta{margin-top:30mm;font-size:11pt;line-height:2.1;color:#1a1d21}
+  .print-cover .pc-tip{margin-top:26mm;font-size:9pt;color:#7a828b;line-height:1.7}
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+<aside class="sidebar">
+  <div class="brand">
+    <h1>GitLab CE 测试框架<br>完整学习计划</h1>
+    <div class="sub">从部署到 API / UI / 性能 / 安全 / 回归 / CI-CD</div>
+  </div>
+  <button class="print-btn" type="button" onclick="window.print()">
+    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>
+    打印 / 导出 PDF
+  </button>
+  <div class="nav-total">
+    <div style="flex:1">总进度 <b id="pct">0%</b></div>
+    <div class="bar"><i id="bar" style="width:0%"></i></div>
+  </div>
+  <nav class="nav" id="nav">
+    <a href="#design" class="on"><span class="dot" style="background:var(--purple)"></span>设计原理<span class="n">总纲</span></a>
+    <a href="#s0"><span class="dot" style="background:var(--text-3)"></span>地基 · 靶场</a>
+    <a href="#s1"><span class="dot" style="background:var(--accent)"></span>一 框架搭建<span class="n">W1-2</span></a>
+    <a href="#s2"><span class="dot" style="background:var(--teal)"></span>二 API 测试<span class="n">W3-4</span></a>
+    <a href="#s3"><span class="dot" style="background:var(--purple)"></span>三 UI 测试<span class="n">W5</span></a>
+    <a href="#s4"><span class="dot" style="background:var(--warn)"></span>四 性能测试<span class="n">W6</span></a>
+    <a href="#s5"><span class="dot" style="background:var(--risk)"></span>五 安全测试<span class="n">W7</span></a>
+    <a href="#s6"><span class="dot" style="background:var(--ok)"></span>六 回归治理<span class="n">W8</span></a>
+    <a href="#s7"><span class="dot" style="background:var(--accent)"></span>七 CI/CD<span class="n">W9</span></a>
+    <a href="#s8"><span class="dot" style="background:var(--text-3)"></span>八 面试转化<span class="n">W10</span></a>
+    <a href="#s9"><span class="dot" style="background:var(--text-3)"></span>自检总清单</a>
+  </nav>
+</aside>
+
+<main>
+
+<!-- ============ 打印封面（仅打印时显示） ============ -->
+<div class="print-cover">
+  <div class="pc-kicker">GITLAB CE · TEST AUTOMATION</div>
+  <h1>GitLab CE 测试框架<br>完整学习计划</h1>
+  <div class="pc-rule"></div>
+  <div class="pc-sub">设计原理 · 10 周路线 · 8 个阶段 · 38 项验收</div>
+  <div class="pc-sub" style="margin-top:4pt">API / UI / 性能 / 安全 / 回归 / CI-CD</div>
+  <div class="pc-meta">
+    <div>打印日期：<span id="print-date">—</span></div>
+    <div>完成进度：<span id="print-progress">—</span></div>
+  </div>
+  <div class="pc-tip">
+    每个阶段先读「核心认知」再动手——它讲的是为什么。<br>
+    验收项全部勾选后再进入下一阶段；勾选状态保存在本机浏览器。
+  </div>
+</div>
+
+<!-- ============ 概览 ============ -->
+<section id="overview">
+  <h2><span class="idx"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></span>这份计划怎么用</h2>
+  <p class="lead">
+    计划不是从零写框架，而是<strong>在你已经建好的 <code>gitlab-qa</code> 上加厚</strong>。
+    现有基线：<b>88 条用例、7 个分层、10 个套件、12 个 marker</b>、CI 双跑。
+    W7 安全层与 W8 回归治理层已落地——后者是本轮新建的，它补的是最容易被跳过的一环：
+    <strong>一轮跑绿说明不了什么，能重复 N 轮都绿才叫可信</strong>。
+  </p>
+
+  <div class="note ok">
+    <b>往下之前先看「设计原理」</b>
+    <a href="#design" style="color:inherit;font-weight:600">设计原理</a> 一节讲的是这套框架<strong>为什么长这样</strong>：
+    六层结构、八条原则、一条用例的完整链路、几个主动取舍。
+    它不新增任务，但决定了后面每个阶段你做的是"照抄步骤"还是"理解后自己判断"。
+  </div>
+
+  <div class="card">
+    <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>当前基线（可直接核对）</h3>
+    <table>
+      <thead><tr><th style="width:88px">分层</th><th style="width:60px">用例</th><th>职责</th><th style="width:130px">什么时候跑</th></tr></thead>
+      <tbody>
+        <tr><td><code>unit</code></td><td>17</td><td>框架自检，不联网——框架自己也得有测试</td><td>每次改动</td></tr>
+        <tr><td><code>smoke</code></td><td>4</td><td>环境活着 + 核心只读接口</td><td>PR 门禁</td></tr>
+        <tr><td><code>api</code></td><td>22</td><td>鉴权 / CRUD / 契约 / 分页</td><td>PR 门禁</td></tr>
+        <tr><td><code>ui</code></td><td>3</td><td>Playwright 关键路径</td><td>合并前</td></tr>
+        <tr><td><code>e2e</code></td><td>1</td><td>API 造数据 → UI 验收</td><td>合并前</td></tr>
+        <tr><td><code>perf</code></td><td>3</td><td>并发采样 + P95 门禁</td><td>夜间</td></tr>
+        <tr><td><code>security</code></td><td><b style="color:var(--ok)">32</b></td><td>越权 6 / 注入转义 12 / 泄露 8 / 暴露面 6</td><td>夜间 + 发版前</td></tr>
+      </tbody>
+    </table>
+    <p style="font-size:12.5px;color:var(--text-3);margin-top:9px">
+      合计 82 条用例函数（参数化展开后 88 项）。实测记录：<code>--suite security</code> 32 passed / 0 skipped；
+      全量 85 passed / 1 skipped，两条性能用例在 4 个 worker 并行时 P95 冲到 3s+ 超阈值，
+      单独跑 <code>--suite perf</code> 3 passed——这正是"性能不进 PR 门禁"的现场证据。<br>
+      靶机全量（<code>--mock</code>）80 passed / 8 skipped：8 条 skip 全是"缺第二身份"，
+      既不算失败也不算通过——<b>这正是 W8 要解决的"skip 伪装成稳定"</b>。
+    </p>
+  </div>
+
+  <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="4" width="18" height="17" rx="2"/><path d="M8 2v4M16 2v4M3 10h18"/></svg>节奏安排</h3>
+  <div class="stage-map">
+    <div class="stage"><div class="w">W0 · 半天</div><div class="t">地基</div><div class="d">部署 GitLab CE 靶场，跑通一键脚本</div></div>
+    <div class="stage"><div class="w">W1–W2</div><div class="t">框架搭建</div><div class="d">pytest 工程化、夹具分层、数据工厂、失败留证</div></div>
+    <div class="stage t"><div class="w">W3–W4</div><div class="t">API 测试</div><div class="d">客户端、鉴权状态机、契约三层、数据依赖</div></div>
+    <div class="stage p"><div class="w">W5</div><div class="t">UI 测试</div><div class="d">POM、通道回退、trace 留证、断言有效性</div></div>
+    <div class="stage n"><div class="w">W6</div><div class="t">性能</div><div class="d">并发采样、P95 门禁、证明门禁有效</div></div>
+    <div class="stage r"><div class="w">W7</div><div class="t">安全 · 已建成</div><div class="d">越权 6 / 注入转义 12 / 泄露 8 / 暴露面 6</div></div>
+    <div class="stage o"><div class="w">W8</div><div class="t">回归治理 · 已建成</div><div class="d">四类稳定性判定、隔离区收费制、重试上报</div></div>
+    <div class="stage"><div class="w">W9</div><div class="t">CI/CD</div><div class="d">双平台跑、趋势累积、报告发布、门禁阻断</div></div>
+    <div class="stage"><div class="w">W10</div><div class="t">面试转化</div><div class="d">把工程经历讲成能力证据</div></div>
+  </div>
+
+  <div class="note">
+    <b>学习顺序的关键</b>
+    先<strong>建靶场</strong>再建框架。很多人的顺序反了：先写一堆用例，跑到一半发现环境不稳定，
+    然后花大量时间分辨「是我的用例错了还是环境抖了」。靶场稳定之后，失败就是真的失败。
+  </div>
+</section>
+
+<!-- ============ 设计原理 ============ -->
+<section id="design">
+  <h2><span class="idx"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 3 7.5l9 4.5 9-4.5L12 3z"/><path d="M3 12l9 4.5L21 12"/><path d="M3 16.5 12 21l9-4.5"/></svg></span>设计原理 · 这套框架为什么长这样</h2>
+  <p class="lead">
+    这一节<strong>不新增任务</strong>，只回答一个问题：<code>gitlab-qa</code> 为什么是现在这个结构。
+    看完你应该能做到三件事——不看代码画出分层图；说出每个设计决定要防的是什么；
+    在面试里讲清取舍，而不只是罗列"我用了 pytest + requests + Playwright + Allure"。
+  </p>
+
+  <div class="card">
+    <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.2"/></svg>总纲：框架的第一性目标</h3>
+    <p>测试框架的第一性目标<strong>不是"让用例跑起来"</strong>，而是让三种信号可信：</p>
+    <table>
+      <thead><tr><th style="width:96px">信号</th><th style="width:150px">要求</th><th>做不到时的典型症状</th></tr></thead>
+      <tbody>
+        <tr><td><b style="color:var(--risk)">红</b></td><td>可定位</td><td>失败只有一行 <code>assert 403 == 401</code>，必须本地复现一遍才知道哪个请求出的问题</td></tr>
+        <tr><td><b style="color:var(--ok)">绿</b></td><td>非假绿</td><td>报告全绿，实际一条需要鉴权的用例都没跑；越权断言恒真，永远不可能红</td></tr>
+        <tr><td><b>结论</b></td><td>可消费</td><td>别人拿到报告还得问你"这些红的是环境问题还是真 bug"</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top:10px">下面所有设计——分层、守卫、数据工厂、留证、套件划分——都是这三条的展开。<strong>判断一个改动该不该做，也回到这三条。</strong></p>
+  </div>
+
+  <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M3 15h18"/></svg>一 · 六层结构与依赖方向</h3>
+
+  <div class="arch">
+    <svg viewBox="0 0 900 375" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="gitlab-qa 六层架构图">
+      <defs>
+        <marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 1 L9 5 L0 9 z" fill="#7a828b"/>
+        </marker>
+      </defs>
+
+      <g>
+        <rect x="16" y="8" width="744" height="52" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="16" y="8" width="5" height="52" rx="2" fill="#2b5c9e"/>
+        <circle cx="46" cy="34" r="13" fill="#2b5c9e"/>
+        <text x="46" y="38" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">L1</text>
+        <text x="68" y="28" font-size="13.5" font-weight="700" fill="#1a1d21">用例层</text>
+        <text x="68" y="48" font-size="11.5" fill="#7a828b">tests/unit · smoke · api · ui · e2e · perf · security —— 只表达意图与断言，不出现 URL、路径、选择器</text>
+      </g>
+      <g>
+        <rect x="16" y="68" width="744" height="52" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="16" y="68" width="5" height="52" rx="2" fill="#0f6f78"/>
+        <circle cx="46" cy="94" r="13" fill="#0f6f78"/>
+        <text x="46" y="98" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">L2</text>
+        <text x="68" y="88" font-size="13.5" font-weight="700" fill="#1a1d21">夹具与数据层</text>
+        <text x="68" y="108" font-size="11.5" fill="#7a828b">根 conftest（环境守卫 + 基础设施）· tests/conftest（业务夹具）· data/factory.py（造 · 登记 · 回收 · 台账）</text>
+      </g>
+      <g>
+        <rect x="16" y="128" width="744" height="52" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="16" y="128" width="5" height="52" rx="2" fill="#6b4fa0"/>
+        <circle cx="46" cy="154" r="13" fill="#6b4fa0"/>
+        <text x="46" y="158" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">L3</text>
+        <text x="68" y="148" font-size="13.5" font-weight="700" fill="#1a1d21">领域封装层</text>
+        <text x="68" y="168" font-size="11.5" fill="#7a828b">api/resources.py（GitLab 门面：Projects / Issues / Users / Groups / Repository）· ui/pages/*（页面对象）</text>
+      </g>
+      <g>
+        <rect x="16" y="188" width="744" height="52" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="16" y="188" width="5" height="52" rx="2" fill="#a8641a"/>
+        <circle cx="46" cy="214" r="13" fill="#a8641a"/>
+        <text x="46" y="218" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">L4</text>
+        <text x="68" y="208" font-size="13.5" font-weight="700" fill="#1a1d21">传输层</text>
+        <text x="68" y="228" font-size="11.5" fill="#7a828b">api/client.py（超时 · 重试 · 429 退避 · 分页 · 计时 · 请求日志）· ui/browser.py（会话 · context · trace · 留证）</text>
+      </g>
+      <g>
+        <rect x="16" y="248" width="744" height="52" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="16" y="248" width="5" height="52" rx="2" fill="#7a828b"/>
+        <circle cx="46" cy="274" r="13" fill="#7a828b"/>
+        <text x="46" y="278" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">L5</text>
+        <text x="68" y="268" font-size="13.5" font-weight="700" fill="#1a1d21">支撑层</text>
+        <text x="68" y="288" font-size="11.5" fill="#7a828b">settings.py（配置）· contracts.py + models.py（双层契约）· utils/wait.py（轮询）· perf/runner.py（统计）· allure_meta.py</text>
+      </g>
+      <g>
+        <rect x="16" y="308" width="744" height="52" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="16" y="308" width="5" height="52" rx="2" fill="#1a7f4b"/>
+        <circle cx="46" cy="334" r="13" fill="#1a7f4b"/>
+        <text x="46" y="338" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">L6</text>
+        <text x="68" y="328" font-size="13.5" font-weight="700" fill="#1a1d21">编排与呈现层</text>
+        <text x="68" y="348" font-size="11.5" fill="#7a828b">tools/run.py（套件 · 报告 · 趋势）· doctor.py（环境自检）· mock_gitlab.py（本地靶机）· Allure + CI 流水线</text>
+      </g>
+
+      <line x1="788" y1="26" x2="788" y2="344" stroke="#cfd4da" stroke-width="1.5" marker-end="url(#ar)"/>
+      <text x="800" y="40" font-size="12.5" fill="#7a828b">依</text>
+      <text x="800" y="58" font-size="12.5" fill="#7a828b">赖</text>
+      <text x="800" y="76" font-size="12.5" fill="#7a828b">单</text>
+      <text x="800" y="94" font-size="12.5" fill="#7a828b">向</text>
+      <text x="800" y="112" font-size="12.5" fill="#7a828b">向</text>
+      <text x="800" y="130" font-size="12.5" fill="#7a828b">下</text>
+    </svg>
+    <div class="arch-cap">
+      上层可以调用下层，下层永远不知道上层的存在。判断某一行代码该放哪层的标准只有一句：
+      <b>换一个被测系统，这一行还成立吗</b>——成立的往上放，不成立的往下沉。
+    </div>
+  </div>
+
+  <table>
+    <thead><tr><th style="width:52px">层</th><th style="width:150px">换被测系统时</th><th>违反后长什么样（本项目的真实代价）</th></tr></thead>
+    <tbody>
+      <tr><td><b>L1</b></td><td><b style="color:var(--ok)">不该改</b></td><td>用例里写死 <code>/api/v4/projects</code> 和 CSS 选择器 → 接口路径一变要改 N 个文件；GitLab 升版后 UI 用例成片红</td></tr>
+      <tr><td><b>L2</b></td><td>只改业务夹具</td><td>守卫写在用例里 → 有的用例 prod 下照写不误；清理散在各处 → 数据互相污染</td></tr>
+      <tr><td><b>L3</b></td><td>整体替换</td><td><code>Projects._enc</code> 处理 <code>namespace/project</code> 的 <code>%2F</code> 编码——散在用例里的话，每个调用点都会踩一次</td></tr>
+      <tr><td><b>L4</b></td><td>基本不动</td><td>429 退避、分页、重试策略各写各的 → 有的用例把 GitLab 压到限流，账号被封</td></tr>
+      <tr><td><b>L5</b></td><td>改配置与契约</td><td>配置散落各处 <code>os.getenv</code> → 换环境改漏一处，出现"明明改了却没生效"</td></tr>
+      <tr><td><b>L6</b></td><td>只改地址</td><td>没有统一入口 → 每人跑出来的报告不一样，互相没法比对</td></tr>
+    </tbody>
+  </table>
+
+  <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v18"/><path d="M5 8l7-5 7 5"/><path d="M5 16l7 5 7-5"/></svg>二 · 八条设计原则</h3>
+  <p class="lead" style="margin-bottom:12px">每条原则都有<strong>代码落点</strong>和<strong>不这么做的代价</strong>。只记住结构讲不出代价，面试一追问就露馅。</p>
+
+  <div class="pcard">
+    <div class="ph"><span class="pn">1</span>配置单一来源，且缺配置要早失败、说得清</div>
+    <p>加载顺序固定为 <b>环境变量 &gt; .env &gt; 默认值</b>，且 <code>.env</code> 按 <code>PROJECT_ROOT</code> 定位而不是靠当前工作目录——
+    否则换个目录执行就读不到配置，症状是"明明配了却说没配"。</p>
+    <dl class="kv">
+      <dt>落点</dt><dd><code>settings.py</code>：<code>load()</code> 唯一入口 · <code>has_token</code> / <code>has_member_token</code> 用 <code>&lt;</code> 前缀判空占位 · <code>describe()</code> 脱敏输出（只显示首尾几位）</dd>
+      <dt>代价</dt><dd>缺 Token 时不早失败，会跑到第 40 条用例才因为 URL 是空值报一个看不懂的错</dd>
+    </dl>
+  </div>
+
+  <div class="pcard">
+    <div class="ph"><span class="pn">2</span>用例里不许出现裸路径和裸选择器</div>
+    <p>用例只跟"资源"和"页面对象"打交道：<code>gl.projects.create(...)</code>、<code>login_page.login(...)</code>。
+    接口路径、URL 编码、DOM 选择器全部分别收敛到 <code>resources.py</code> 和页面对象里。</p>
+    <dl class="kv">
+      <dt>落点</dt><dd><code>GitLab</code> 门面（System/Projects/Issues/Users/Groups/Repository）· <code>Projects._enc()</code> 编码 · <code>BasePage._first([...])</code> 多候选选择器</dd>
+      <dt>代价</dt><dd>改一处接口动 N 个用例；GitLab 各版本 DOM 变化会让 UI 用例集体变红，而实际功能没问题</dd>
+    </dl>
+  </div>
+
+  <div class="pcard">
+    <div class="ph"><span class="pn">3</span>对假绿零容忍 —— 本框架最硬的一条</div>
+    <p>一个<strong>永远不会红的断言</strong>比没有断言更危险：它在报告上是绿的，会让你以为这条路径已经被守住。
+    本项目里真实出现过一次：越权用例用管理员访问管理员端点，永远返回 200，断言恒真。</p>
+    <dl class="kv">
+      <dt>落点</dt><dd>缺 Token / 缺第二身份 → <code>pytest.skip</code> 而不是 pass · <code>--strict-markers</code>（marker 拼错直接报错，而非静默不生效）· 全局 <code>addopts</code> 里<b>不放</b> <code>--reruns</code> · <code>run.py</code> 拦截 pytest 退出码 5（零收集）· 越权断言强制换身份</dd>
+      <dt>代价</dt><dd>报告全绿但一条关键用例都没跑 —— 这比全红危险得多，因为它会一直绿下去</dd>
+    </dl>
+  </div>
+
+  <div class="pcard">
+    <div class="ph"><span class="pn">4</span>数据自治：自己造、自己清、清理不许失败</div>
+    <p>测试数据带 <b>run-scoped 前缀</b>（前缀 + 随机后缀 + 自增计数），多轮运行、多人并行都不撞名；
+    创建即登记，按依赖倒序清理（议题 → 项目 → 群组），删除接受 <code>202/204/404</code> 三种结果——已经没了也算成功。</p>
+    <dl class="kv">
+      <dt>落点</dt><dd><code>factory.py</code>：<code>ledger</code> 台账 · <code>cleanup()</code> 倒序 + 幂等 · <code>projects.purge()</code> 两步永久删除 · 清理结果作为 Allure 附件「数据清理记录」</dd>
+      <dt>代价</dt><dd>GitLab 默认延迟删除会把项目保留若干天（本机实测 30 天，最小只能设 1），跑几十轮就堆上百个僵尸项目，项目列表越来越慢，最终表现为 UI 用例<b>莫名其妙 timeout</b>——排查时没人会想到是清理方式的问题（本项目真实发生过：88 个待删除僵尸）</dd>
+    </dl>
+  </div>
+
+  <div class="pcard">
+    <div class="ph"><span class="pn">5</span>异步用轮询，不用 sleep</div>
+    <p>删除是后台任务、搜索要建索引、状态流转有延迟。固定 <code>sleep</code> 的取值必然在快环境浪费时间、在慢环境假失败。</p>
+    <dl class="kv">
+      <dt>落点</dt><dd><code>utils/wait.py</code>：<code>wait_until(谓词, 超时, 间隔)</code> · <code>wait_for_status(请求, 期望状态码)</code>；期间的异常（如 404）视为"还没满足"继续等</dd>
+      <dt>代价</dt><dd>几百条用例各 <code>sleep(3)</code>，一轮跑几十分钟；CI 上偶发红，本地重跑又绿，从此没人信这个套件</dd>
+    </dl>
+  </div>
+
+  <div class="pcard">
+    <div class="ph"><span class="pn">6</span>失败即证据：三级留证自动化</div>
+    <p>留证<b>不能靠用例作者记得写</b>——统一挂在 <code>pytest_runtest_makereport</code> 钩子里，失败时自动attach，用例代码里一行都不用加。</p>
+    <dl class="kv">
+      <dt>落点</dt><dd>UI：截图 + DOM 快照 + <code>trace.zip</code>　·　API：完整请求/响应日志（含方法与耗时）　·　性能：采样明细 markdown　·　数据：清理台账</dd>
+      <dt>代价</dt><dd>失败只剩一行 assert，排查必须本地复现一遍；偶现失败永远查不出来</dd>
+    </dl>
+  </div>
+
+  <div class="pcard">
+    <div class="ph"><span class="pn">7</span>运行可复现：换个人跑出同样的结果</div>
+    <p>一套框架真正难的不是写用例，是<b>换个人、换台机器也能跑出同样的结果</b>。所以参数、结果目录、报告生成、趋势继承全部固化进一个入口。</p>
+    <dl class="kv">
+      <dt>落点</dt><dd><code>tools/run.py</code>：9 个套件固化路径与并行度 · <code>-p no:base_url -p no:playwright</code> 屏蔽抢注插件 · <code>--mock</code> 起内置靶机（无需 Docker）· 清结果时<b>保留 history</b>（趋势才能连起来）· <code>--keep-results</code> 供安全策略禁止批量删除的环境</dd>
+      <dt>代价</dt><dd>本机装了 <code>pytest-base-url</code> / <code>pytest-playwright</code>，会抢注 <code>--base-url</code> 和 <code>page</code> 固件，pytest 在<b>收集前</b>就崩；换解释器跑又正常——排查时先看 <code>sys.executable</code></dd>
+    </dl>
+  </div>
+
+  <div class="pcard">
+    <div class="ph"><span class="pn">8</span>门禁分层：不是所有测试都该挡住合并</div>
+    <p>门禁的价值 = <b>拦住真问题的概率 ÷ 它让人等待的成本</b>。所以按"快且稳"到"慢或噪"分层放。</p>
+    <dl class="kv">
+      <dt>落点</dt><dd>PR 门禁：<code>unit + smoke + api</code>（快、以只读为主）　·　合并前：<code>ui + e2e</code>　·　夜间 + 发版前：<code>perf + security</code>　·　<code>destructive</code> 在 <code>--env prod</code> 下<b>收集期就跳过</b></dd>
+      <dt>代价</dt><dd>性能受宿主机噪声影响（本项目实测：并发清理 30 个项目时容器 CPU 打满，P95 从几百毫秒翻到 2 秒以上），放进 PR 门禁只会换来一堆无意义的红，最后大家学会无视它</dd>
+    </dl>
+  </div>
+
+  <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><path d="M4 12h16"/><path d="M14 6l6 6-6 6"/></svg>三 · 一条用例的完整链路</h3>
+  <p class="lead">下面是一条 API 用例从被收集到进报告的七个环节。能默出这条链路，就知道该在哪里加断言、在哪里加留证。</p>
+
+  <div class="arch">
+    <svg viewBox="0 0 900 132" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="一条 API 用例的生命周期">
+      <defs>
+        <marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+          <path d="M0 1 L9 5 L0 9 z" fill="#cfd4da"/>
+        </marker>
+      </defs>
+      <text x="12" y="18" font-size="12.5" font-weight="700" fill="#4a5158">一条 API 用例的生命周期</text>
+
+      <g>
+        <rect x="12" y="34" width="112" height="58" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="12" y="34" width="112" height="4" rx="2" fill="#2b5c9e"/>
+        <text x="68" y="57" font-size="12.5" font-weight="700" fill="#1a1d21" text-anchor="middle">① 收集 · 守卫</text>
+        <text x="68" y="76" font-size="10.5" fill="#7a828b" text-anchor="middle">缺失即 skip</text>
+      </g>
+      <line x1="126" y1="63" x2="138" y2="63" stroke="#cfd4da" stroke-width="1.4" marker-end="url(#ar2)"/>
+
+      <g>
+        <rect x="140" y="34" width="112" height="58" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="140" y="34" width="112" height="4" rx="2" fill="#0f6f78"/>
+        <text x="196" y="57" font-size="12.5" font-weight="700" fill="#1a1d21" text-anchor="middle">② 装配 · 夹具</text>
+        <text x="196" y="76" font-size="10.5" fill="#7a828b" text-anchor="middle">settings·client·factory</text>
+      </g>
+      <line x1="254" y1="63" x2="266" y2="63" stroke="#cfd4da" stroke-width="1.4" marker-end="url(#ar2)"/>
+
+      <g>
+        <rect x="268" y="34" width="112" height="58" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="268" y="34" width="112" height="4" rx="2" fill="#6b4fa0"/>
+        <text x="324" y="57" font-size="12.5" font-weight="700" fill="#1a1d21" text-anchor="middle">③ 请求 · 传输</text>
+        <text x="324" y="76" font-size="10.5" fill="#7a828b" text-anchor="middle">重试·429·分页·计时</text>
+      </g>
+      <line x1="382" y1="63" x2="394" y2="63" stroke="#cfd4da" stroke-width="1.4" marker-end="url(#ar2)"/>
+
+      <g>
+        <rect x="396" y="34" width="112" height="58" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="396" y="34" width="112" height="4" rx="2" fill="#a8641a"/>
+        <text x="452" y="57" font-size="12.5" font-weight="700" fill="#1a1d21" text-anchor="middle">④ 断言 · 三层</text>
+        <text x="452" y="76" font-size="10.5" fill="#7a828b" text-anchor="middle">状态·业务·契约</text>
+      </g>
+      <line x1="510" y1="63" x2="522" y2="63" stroke="#cfd4da" stroke-width="1.4" marker-end="url(#ar2)"/>
+
+      <g>
+        <rect x="524" y="34" width="112" height="58" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="524" y="34" width="112" height="4" rx="2" fill="#b03030"/>
+        <text x="580" y="57" font-size="12.5" font-weight="700" fill="#1a1d21" text-anchor="middle">⑤ 回收 · 数据</text>
+        <text x="580" y="76" font-size="10.5" fill="#7a828b" text-anchor="middle">幂等·倒序清理</text>
+      </g>
+      <line x1="638" y1="63" x2="650" y2="63" stroke="#cfd4da" stroke-width="1.4" marker-end="url(#ar2)"/>
+
+      <g>
+        <rect x="652" y="34" width="112" height="58" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="652" y="34" width="112" height="4" rx="2" fill="#7a828b"/>
+        <text x="708" y="57" font-size="12.5" font-weight="700" fill="#1a1d21" text-anchor="middle">⑥ 留证 · 证据</text>
+        <text x="708" y="76" font-size="10.5" fill="#7a828b" text-anchor="middle">日志·截图·trace</text>
+      </g>
+      <line x1="766" y1="63" x2="778" y2="63" stroke="#cfd4da" stroke-width="1.4" marker-end="url(#ar2)"/>
+
+      <g>
+        <rect x="780" y="34" width="108" height="58" rx="8" fill="#ffffff" stroke="#e3e6ea"/>
+        <rect x="780" y="34" width="108" height="4" rx="2" fill="#1a7f4b"/>
+        <text x="834" y="57" font-size="12.5" font-weight="700" fill="#1a1d21" text-anchor="middle">⑦ 归档 · 报告</text>
+        <text x="834" y="76" font-size="10.5" fill="#7a828b" text-anchor="middle">趋势·汉化·退出码</text>
+      </g>
+
+      <text x="12" y="112" font-size="11" fill="#7a828b">③ 的重试只对 GET/HEAD/OPTIONS 生效：POST 重试可能造出重复资源，这是"重试必须区分幂等"的硬规则</text>
+      <text x="12" y="126" font-size="11" fill="#7a828b">⑤ 无论用例通过还是失败都会执行——清理挂在 fixture 的 teardown 上，不挂在用例里</text>
+    </svg>
+  </div>
+
+  <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>四 · 契约为什么做两层</h3>
+  <div class="grid2">
+    <div class="box">
+      <h5>models.py · pydantic</h5>
+      <ul>
+        <li>代表<b>我这边的期望</b>：<code>extra="allow"</code> 放行多余字段</li>
+        <li>只约束关键字段与类型</li>
+        <li>目的：我依赖的字段还在、类型没变</li>
+        <li>用途：用例里拿 <code>Project.id</code>、<code>Issue.is_open</code> 这类属性做业务断言</li>
+      </ul>
+    </div>
+    <div class="box">
+      <h5>contracts.py · jsonschema</h5>
+      <ul>
+        <li>代表<b>服务端的承诺</b>：<code>required</code> + <code>type</code> + <code>enum</code> 严格</li>
+        <li>一次列出所有不合约字段，而不是只报第一个</li>
+        <li>目的：上游结构漂移能报警</li>
+        <li>用途：契约测试独立成套件，可打公网实例做漂移检测</li>
+      </ul>
+    </div>
+  </div>
+  <div class="note">
+    <b>为什么两套都要</b>
+    只留 pydantic：<b>放不过类型漂移</b>——上游把 <code>id</code> 从 int 改成字符串，宽松模型照样解析成功，
+    但所有按 id 拼路径的用例都会悄悄错位（<code>contracts.PROJECT</code> 里对 <code>id</code> 的类型约束就是为这个写的）。<br>
+    只留 jsonschema：上游<b>多给一个字段就红一片</b>，噪音太大，真问题反而被淹没。
+  </div>
+
+  <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><rect x="2" y="4" width="20" height="14" rx="2"/><path d="M8 21h8"/></svg>五 · UI 层为什么"少而准"</h3>
+  <p>UI 用例是全套里<b>最贵也最脆</b>的一类：慢、依赖浏览器、受页面微调影响。所以它只守关键路径，靠四件事压住不稳定性。</p>
+  <ul>
+    <li><b>多候选选择器</b>：<code>_first([...])</code> 按优先级尝试，GitLab 各版本 DOM 差异不需要改用例</li>
+    <li><b>浏览器通道回退</b>：msedge → chrome → chromium。内网下载不到 Playwright 浏览器时，用系统已有的 Edge/Chrome 也能跑（真实约束：企业环境 CDN 常不通）</li>
+    <li><b>每条用例独立 context</b> + 全程 trace：cookie / localStorage 不串味，失败能回放每一步而不是只有一张截图</li>
+    <li><b>断言有效性</b>：<code>is_logged_in</code> 判定"可见的已登录元素"，而不是"元素存在即通过"——折叠菜单里那个链接一直存在但不可见，用存在性判定会得到假绿</li>
+  </ul>
+  <div class="note">
+    <b>验收标准</b>
+    每条 UI 用例都要能演示<b>「改坏就变红」</b>。演示不出来的，说明这条断言没在守任何东西。
+  </div>
+
+  <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><path d="M3 17l5-6 4 3 5-8 4 5"/></svg>六 · 性能为什么是"门禁"而不是"图表"</h3>
+  <ul>
+    <li><b>固定样本数 + 并发</b>：不是"跑多久"，而是"取多少个样本"，结果才可比对</li>
+    <li><b>P95 用线性插值</b>：与 Prometheus / Grafana 口径一致，方便和线上监控对账</li>
+    <li><b>为什么不用平均值</b>：均值会被少量极慢请求掩盖；P95 对应"绝大多数用户的体感上限"</li>
+    <li><b>门禁必须自证有效</b>：用 <code>--mock-latency-ms</code> / <code>--mock-error-rate</code> 注入延迟和 503，<b>确认门禁真的会红</b>——没被验证过的门禁等于没有门禁</li>
+    <li><b>不进 PR 门禁</b>：宿主噪声大，且需要可比对的历史趋势才有意义</li>
+  </ul>
+
+  <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><path d="M12 3l8 4v6c0 5-3.5 7.5-8 8-4.5-.5-8-3-8-8V7l8-4z"/><path d="M9 12l2 2 4-4"/></svg>七 · 安全层的设计边界（已落地 32 条）</h3>
+  <div class="note risk">
+    <b>信任边界写进代码，不写在文档里</b>
+    安全用例<b>只对自己拥有的本地实例执行</b>。<code>src/gqa/security/guard.py</code> 在每个用例前判定：
+    目标 host 不在白名单就 <b>skip</b>；需要指向别的机器时必须用 <code>SECURITY_ALLOWED_HOSTS</code> 显式授权。<br>
+    这不是形式主义——自动化安全测试一旦能指向任意地址，性质就变了，而"记得别配错"不能算防护。
+  </div>
+  <ul>
+    <li><b>可回归优先</b>：一次扫描的结果不是资产，<b>能反复跑并断言的才是</b>。所以只做四类：越权、注入与转义、敏感字段泄露、暴露面开关</li>
+    <li><b>越权必须双身份</b>：<code>GITLAB_MEMBER_TOKEN</code> 提供普通用户视角；缺则 skip。用管理员访问管理员端点永远 200，断言恒真</li>
+    <li><b>403 与 401 要分清</b>：401 是没认证，403 是认证了但没权限。越权用例断言的是 403——写成 401 说明你测的是鉴权而不是授权</li>
+    <li><b>探针先手测再写用例</b>：<code>/admin/*</code> 是 Web 路径不是 API（真实返回 404），管理员端点要用 <code>/application/settings</code>。<b>mock 里通过不代表真实实例通过</b></li>
+  </ul>
+
+  <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.6"/><circle cx="3.5" cy="12" r="1.6"/><circle cx="3.5" cy="18" r="1.6"/></svg>八 · 三个主动取舍（面试最容易加分的部分）</h3>
+  <table>
+    <thead><tr><th style="width:170px">取舍</th><th>理由</th></tr></thead>
+    <tbody>
+      <tr><td><b>自研 client<br>不用现成 SDK</b></td><td>要把 429 退避、分页、计时、请求日志这四件事握在自己手里——它们恰恰是"测试客户端"和"普通脚本"的分界线。现成 SDK 的重试与日志策略不为"测试要留证"设计</td></tr>
+      <tr><td><b>自写并发采样<br>不用 locust</b></td><td>这里要的是<b>能从 pytest 调用、能产出结构化结果、能让 CI 判通过/失败</b>的门禁，不是压测平台。locust 的产出是给人看的报表，不是给流水线用的退出码</td></tr>
+      <tr><td><b>不做全局失败重跑</b></td><td><code>--reruns</code> 会把偶现的真缺陷重跑成绿。偶现失败是<b>信号</b>不是噪音——正确做法是标记 flake、留证据、单独治理，而不是让它消失</td></tr>
+    </tbody>
+  </table>
+
+  <div class="note ok">
+    <b>面试怎么讲这套设计</b>
+    按 <b>目标 → 分层 → 防假绿 → 门禁</b> 的顺序讲，每讲一条附一个你真实付出的代价
+    （僵尸项目把 UI 拖超时 / 越权断言恒真 / 插件抢注导致收集前崩溃 / 退出码 5 伪装成通过）。<br>
+    <b>讲得出代价的设计才是你自己做的；只讲得出结构的多半是抄的。</b>
+  </div>
+</section>
+
+<!-- ============ 地基 ============ -->
+<section id="s0">
+  <h2><span class="idx">0</span>地基 · 拥有你自己说了算的靶场</h2>
+  <p class="lead">目标：一台随时能起、能重置、数据随便造的 GitLab CE。这不是前置琐事，它决定了后面每一步的可信度。</p>
+
+  <div class="week">
+    <div class="week-hd"><span class="wk">W0</span><h4>一键部署与验收</h4><span class="t">约 0.5 天</span></div>
+    <div class="week-bd">
+      <div class="goal">
+        <b>核心认知：</b>
+        <div>测试框架的价值，取决于靶场是否稳定。靶场不稳时，你会把环境问题误判成框架问题——
+        这是新手浪费时间最多的地方（502、迁移卡住、服务没起来都可能伪装成"用例不稳定"）。</div>
+      </div>
+
+      <div class="grid2">
+        <div class="box">
+          <h5>动手</h5>
+          <ul>
+            <li><b>一键部署</b>：<code>.\deploy.ps1</code> 跑完 8 个阶段（启动 → 等就绪 → 签发 PAT → 写 .env → 冒烟）</li>
+            <li><b>浏览器验证</b>：<code>py -3 tools/verify_browser.py</code> 走 打开→登录→进项目页 三步</li>
+            <li><b>环境自检</b>：<code>py -3 tools/doctor.py</code> 查连通性/鉴权/分页/写权限</li>
+            <li><b>离线兜底</b>：<code>python tools/run.py --suite all --mock</code> 用内置靶机跑，不依赖真实例</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h5>产出物</h5>
+          <ul>
+            <li><code>gitlab-ce/docker-compose.yml</code> — 关掉监控栈省内存</li>
+            <li><code>gitlab-ce/deploy.ps1</code> — 8 阶段一键脚本</li>
+            <li><code>gitlab-qa/.env</code> — 12 个配置键（含 PAT）</li>
+            <li><code>gitlab-ce/logs/browser-0*.png</code> — 浏览器实测证据</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="note risk">
+        <b>已踩过的坑（都已修进脚本，你要知道为什么）</b>
+        ① GitLab 19 <b>移除了 <code>grafana['enable']</code></b>，写了就 <code>UnknownConfigOptionError</code> → 容器无限重启；
+        ② 19 版健康端点变了，<code>/-/readiness</code> 返回 404，就绪判定要换成「sign_in=200 且匿名 API 有响应」；
+        ③ 初始密码 <code>GitlabQA@2026</code> 被密码策略<b>静默拒绝</b>，root 账号根本没建出来——表现为"部署成功但登录不了"；
+        ④ PowerShell 写 <code>.env</code> 必须<b>无 BOM</b>，否则第一个键名带 <code>\ufeff</code>，dotenv 读不到。
+      </div>
+
+      <div class="chk-group" data-group="w0">
+        <div class="chk-hd"><span>验收标准</span><em></em></div>
+        <label class="check"><input type="checkbox"><span>浏览器能打开 http://localhost:8929 并用 root 登录</span></label>
+        <label class="check"><input type="checkbox"><span><code>verify_browser.py</code> 输出 7/7 PASS</span></label>
+        <label class="check"><input type="checkbox"><span><code>doctor.py</code> 全绿，<code>--suite smoke</code> 通过</span></label>
+        <label class="check"><input type="checkbox"><span>能说出"靶场不稳"和"用例失败"的区别，并能用 doctor 分辨</span></label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 阶段一 ============ -->
+<section id="s1">
+  <h2><span class="idx">1</span>框架搭建 · 让它撑得住 200+ 条用例</h2>
+  <p class="lead">目标：不是"能跑"，而是"加 100 条用例后依然清晰、失败能定位、改一个地方不会全崩"。</p>
+
+  <div class="week">
+    <div class="week-hd"><span class="wk">W1</span><h4>pytest 工程化</h4><span class="t">夹具分层 · 作用域 · marker · 配置</span></div>
+    <div class="week-bd">
+      <div class="goal">
+        <b>核心认知：</b>
+        <div>框架的地基是<strong>配置单一来源 + 夹具分层</strong>。配置散落在各处 <code>os.getenv</code>，
+        换环境时改到漏一处就出现"明明改了却没生效"；夹具不分层则每个测试文件都会长出一堆重复 setup。</div>
+      </div>
+
+      <div class="grid2">
+        <div class="box">
+          <h5>动手</h5>
+          <ul>
+            <li><b>三层 conftest</b>：根（全局夹具 + 环境守卫）/ 包（<code>tests/conftest.py</code> 共用夹具）/ 模块级</li>
+            <li><b>作用域验证</b>：用<strong>构造计数器</strong>验证，<u>不要用 <code>id()</code></u></li>
+            <li><b>marker 分组</b>：10 个 marker + <code>--strict-markers</code></li>
+            <li><b>配置收敛</b>：<code>.env → settings.py</code>，其它地方一律 import</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h5>为什么这么做</h5>
+          <ul>
+            <li><code>--strict-markers</code>：写错 marker 直接报错，避免<b>打了标签却没生效</b>的假分组</li>
+            <li>环境守卫：prod 环境下自动跳过 <code>destructive</code> 用例</li>
+            <li><code>requires_token</code>：缺 Token 时 <b>skip 而不是 pass</b>——假绿比失败危险</li>
+          </ul>
+        </div>
+      </div>
+
+      <pre><span class="c"># 验证 fixture 作用域：用计数器，别用 id()
+# CPython 会复用已释放对象的内存地址，id() 相同不代表是同一个实例，
+# 用它验证会得出「作用域正确」的错误结论。</span>
+created = {"n": 0}
+
+@pytest.fixture(scope="session")
+def client():
+    created["n"] += 1
+    return ApiClient(...)
+
+def test_scope_once(client):
+    assert created["n"] == 1   <span class="c"># 第二次调用不会再造</span></pre>
+
+      <div class="note risk">
+        <b>两个绝对不能犯的错</b>
+        ① <code>--reruns</code> <b>绝不能</b>放进全局 <code>addopts</code>——它会把真 bug 重跑成绿，你永远发现不了那个偶现缺陷；
+        ② 插件冲突：本机装了 <code>pytest-base-url</code> / <code>pytest-playwright</code>，会抢注 <code>--base-url</code> 选项和 <code>page</code> 固件，
+        pytest 在<b>收集前</b>就崩，报「conflicting option string」。已在 <code>addopts</code> 固定 <code>-p no:base_url -p no:playwright</code>。
+      </div>
+      <div class="note">
+        <b>这个坑的迷惑性</b>
+        托管的 Python 没装这两个插件，同一个仓库换解释器跑会"一边报错一边正常"。
+        排查同类问题时先看 <code>sys.executable</code>，别急着改代码。
+      </div>
+    </div>
+  </div>
+
+  <div class="week">
+    <div class="week-hd"><span class="wk">W2</span><h4>数据工厂与失败留证</h4><span class="t">造得出来 · 清得干净 · 挂了能查</span></div>
+    <div class="week-bd">
+      <div class="goal">
+        <b>核心认知：</b>
+        <div>测试数据的标准是「<strong>自己造、自己清、清理不许失败</strong>」。
+        清理失败比不清理更糟：它会让整批用例在第二次运行时全红，而你以为是新 bug。</div>
+      </div>
+
+      <div class="grid2">
+        <div class="box">
+          <h5>动手</h5>
+          <ul>
+            <li><code>factory.py</code>：<code>yield</code> 造数据 + <code>finally</code> 清理</li>
+            <li>清理要<b>幂等</b>：接受 <code>204 或 404</code>（已经没了也算成功）</li>
+            <li>Allure 附件：失败时自动附上请求/响应/截图</li>
+            <li>UI 失败挂 <code>trace.zip</code>（放在 fixture teardown 里）</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h5>Allure 两个隐性坑</h5>
+          <ul>
+            <li><code>environment.properties</code> 按 <b>ISO-8859-1</b> 读取，中文必须转 <code>\uXXXX</code>（见 <code>allure_meta.py</code>）</li>
+            <li><code>categories.json</code> 用 Java <code>String.matches()</code> <b>全串匹配</b>，<code>.</code> 不跨行，多行堆栈要加 <code>(?s)</code></li>
+            <li><code>history/</code> 目录驱动趋势图，清理结果时<b>必须保留</b>，别用 <code>--clean-alluredir</code></li>
+          </ul>
+        </div>
+      </div>
+
+      <pre><span class="c"># 清理幂等：目标可能已被上游删掉，404 也要当成功
+# 否则「用例通过了但 teardown 报错」，污染的是整批结果的判定</span>
+@pytest.fixture
+def project(api):
+    pid = api.create_project(f"qa-auto-{uuid4().hex[:8]}")
+    yield pid
+    try:
+        api.delete_project(pid)
+    except ApiError as e:
+        if e.status not in (204, 404):
+            raise</pre>
+
+      <div class="chk-group" data-group="w1">
+        <div class="chk-hd"><span>阶段一验收</span><em></em></div>
+        <label class="check"><input type="checkbox"><span>能解释 conftest 三层各自放什么，并说清为什么不放一起</span></label>
+        <label class="check"><input type="checkbox"><span>能用计数器证明 session/function 作用域的行为差异</span></label>
+        <label class="check"><input type="checkbox"><span>造数据的用例连续跑 3 次，实例里不留垃圾</span></label>
+        <label class="check"><input type="checkbox"><span>故意让一条用例失败，Allure 里能看到请求/响应证据</span></label>
+        <label class="check"><input type="checkbox"><span>Allure 趋势图能跨两次运行连起来（history 没被删）</span></label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 阶段二 ============ -->
+<section id="s2">
+  <h2><span class="idx">2</span>API 测试 · 从"能调通"到"能抓到服务端撒谎"</h2>
+  <p class="lead">目标：大部分人停在"断言 200 和几个字段"。这层的真本事是<strong>契约校验</strong>和<strong>鉴权状态机</strong>。</p>
+
+  <div class="week">
+    <div class="week-hd"><span class="wk">W3</span><h4>客户端与鉴权</h4><span class="t">会话 · 超时 · 重试 · 错误分类</span></div>
+    <div class="week-bd">
+      <div class="grid2">
+        <div class="box">
+          <h5>动手</h5>
+          <ul>
+            <li><code>client.py</code>：会话复用、显式超时、错误分类（网络 / 4xx / 5xx）</li>
+            <li><b>鉴权状态机</b>：登录 → 过期 → 透明续期 → refresh 一次性 → logout 失效</li>
+            <li>Token 分级：管理员 / 只读，用不同夹具</li>
+            <li>断言错误响应体格式一致（不只看状态码）</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h5>真本事在哪</h5>
+          <ul>
+            <li>能测出「<b>Token 过期后没正确续期</b>」这类缺陷，而不是只会测正常路径</li>
+            <li>refresh token <b>只能用一次</b>——重复用应失败，这是常见安全缺陷</li>
+            <li>logout 后旧 Token <b>必须失效</b>，仍能用是严重问题</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="note risk">
+        <b>最隐蔽的一个 bug（本项目真实踩过）</b>
+        服务端返回 401 时客户端<b>不读请求体</b>，keep-alive 上残留的字节会顶掉下一个请求，
+        表现是「随机失败」——同样的用例重跑就好。反过来，业务已读 body 后错误处理再读一次就会阻塞 20 秒。
+        <b>修法是让 drain 幂等</b>（用 <code>_body_read</code> 标记），drain 与解析共享同一次读取。
+        同类问题排查要点：<b>偶发 + 重跑就好 = 先怀疑连接复用，不要先怀疑被测系统</b>。
+      </div>
+    </div>
+  </div>
+
+  <div class="week">
+    <div class="week-hd"><span class="wk">W4</span><h4>契约 · 分页 · 数据依赖</h4><span class="t">三层 schema 校验</span></div>
+    <div class="week-bd">
+      <div class="goal">
+        <b>核心认知：</b>
+        <div>契约校验的价值在于抓住「<strong>服务端悄悄改了字段类型</strong>」——
+        这种改动不会让接口报错，但会让接入方全线崩溃。只断言"字段存在"是抓不到的。</div>
+      </div>
+
+      <table>
+        <thead><tr><th style="width:110px">层</th><th style="width:110px">工具</th><th>校验什么</th><th>能抓住什么</th></tr></thead>
+        <tbody>
+          <tr><td>本地期望</td><td><code>pydantic</code></td><td>我们依赖的字段是否符合预期</td><td>字段缺失、结构变形</td></tr>
+          <tr><td>服务端承诺</td><td><code>jsonschema</code></td><td>响应是否符合文档声明</td><td><b>类型漂移</b>（见下方实测）</td></tr>
+          <tr><td>发布契约</td><td>OpenAPI</td><td>文档与实现是否一致</td><td>文档撒谎、版本不兼容</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note risk">
+        <b>实测教训：pydantic 会放过类型漂移</b>
+        lax 模式下 <code>"1991"</code>（字符串）被自动转成 <code>1991</code>（整数）并<b>校验通过</b>。
+        也就是说：服务端把年份从数字改成了字符串，你的接口测试<b>依然是绿的</b>，而下游已经炸了。
+        只有 jsonschema 严格模式会拦住它。这就是必须做三层而不是一层的原因。
+      </div>
+
+      <div class="grid2">
+        <div class="box">
+          <h5>分页测试要点</h5>
+          <ul>
+            <li>遍历全部页，校验<b>无重复、无遗漏</b></li>
+            <li>边界：<code>per_page=1</code>、超出范围的 page、<code>page=0</code></li>
+            <li>分页期间数据被删 → 不应 500</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h5>数据依赖原则</h5>
+          <ul>
+            <li>用例<b>不能假设数据已存在</b>，自己造自己清</li>
+            <li>只读用例可以依赖种子数据，但断言必须<b>能失败</b></li>
+            <li>用例间禁止顺序依赖（<code>-p no:randomly</code> 也要能过）</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="chk-group" data-group="w2">
+        <div class="chk-hd"><span>阶段二验收</span><em></em></div>
+        <label class="check"><input type="checkbox"><span>写得出鉴权状态机全套用例（含过期/续期/一次性/失效）</span></label>
+        <label class="check"><input type="checkbox"><span>能演示一次「pydantic 放过、jsonschema 拦住」的类型漂移</span></label>
+        <label class="check"><input type="checkbox"><span>分页用例能抓出重复或遗漏（造 25 条数据验证跨页）</span></label>
+        <label class="check"><input type="checkbox"><span>随机打乱用例顺序，结果一致</span></label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 阶段三 ============ -->
+<section id="s3">
+  <h2><span class="idx">3</span>UI 测试 · 少而准，只守关键路径</h2>
+  <p class="lead">目标：UI 用例不是越多越好。这层的关键能力是<strong>判断哪些该用 UI 测</strong>，以及<strong>断言真的有效</strong>。</p>
+
+  <div class="week">
+    <div class="week-hd"><span class="wk">W5</span><h4>Playwright 与页面对象</h4><span class="t">POM · 留证 · 断言有效性</span></div>
+    <div class="week-bd">
+      <div class="grid2">
+        <div class="box">
+          <h5>动手</h5>
+          <ul>
+            <li><b>POM 分层</b>：<code>pages/</code> 只暴露业务动作，<u>不暴露选择器</u></li>
+            <li><b>通道回退</b>：msedge → chrome → chromium</li>
+            <li>失败自动挂 <code>trace.zip</code> + 截图</li>
+            <li><code>destructive</code> 标记：prod 环境自动跳过</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h5>为什么</h5>
+          <ul>
+            <li>选择器散落在用例里 = 改版时全量重写；收进 POM 只改一处</li>
+            <li>企业内网下 Chromium CDN 下不来，<b>本机 Edge 一定有</b>，不需要下载</li>
+            <li>trace 能回放失败瞬间的完整 DOM 和网络，比截图有用得多</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="note risk">
+        <b>最重要的一条：你的断言必须「能失败」</b>
+        本项目真实踩过：匿名访问项目列表的用例<b>通过了</b>，但它是无意义的——
+        因为种子项目全是 private，匿名看到空列表，断言「返回的是列表」恒真。
+        <b>判据：把被测功能弄坏，用例必须变红。</b>做完后故意改坏一次验证（这叫变异测试）。
+      </div>
+
+      <div class="note">
+        <b>UI 覆盖面的取舍</b>
+        业务组合的验证放 API 层（快、稳），UI 只守「用户真正会点」的关键路径：
+        登录、创建项目、提 issue、搜索。一条 UI 用例的维护成本约等于十条 API 用例。
+      </div>
+
+      <div class="chk-group" data-group="w3">
+        <div class="chk-hd"><span>阶段三验收</span><em></em></div>
+        <label class="check"><input type="checkbox"><span>POM 里找不到任何裸露的 CSS 选择器</span></label>
+        <label class="check"><input type="checkbox"><span>每条 UI 用例都能演示「改坏后变红」</span></label>
+        <label class="check"><input type="checkbox"><span>失败时能在 Allure 里打开 trace 回放</span></label>
+        <label class="check"><input type="checkbox"><span>prod 环境跑 <code>--env prod</code> 时写操作用例自动跳过</span></label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 阶段四 ============ -->
+<section id="s4">
+  <h2><span class="idx">4</span>性能测试 · 有阈值的门禁才算数</h2>
+  <p class="lead">目标：跑出数字不难，难的是<strong>这个数字能拦住退化</strong>。没证明过自己有效的门禁等于没有。</p>
+
+  <div class="week">
+    <div class="week-hd"><span class="wk">W6</span><h4>并发采样与门禁</h4><span class="t">P95 · 错误率 · 有效性验证</span></div>
+    <div class="week-bd">
+      <div class="grid2">
+        <div class="box">
+          <h5>动手</h5>
+          <ul>
+            <li><code>perf/runner.py</code>：并发采样 → 统计 P50/P95/P99 + 错误率</li>
+            <li>阈值从 <code>.env</code> 读：<code>PERF_P95_MS</code> / <code>PERF_ERROR_RATE</code></li>
+            <li>超阈值 → 退出码非 0 → CI 阻断</li>
+            <li>结果入 Allure，能看趋势</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h5>关键认知</h5>
+          <ul>
+            <li><b>均值没用</b>，看 P95/P99——均值会掩盖长尾</li>
+            <li>性能<b>不进 PR 门禁</b>，走夜间：单机结果噪声大，误报会毁掉门禁可信度</li>
+            <li>必须<b>证明门禁有效</b>：注入一个慢接口，门禁必须报警</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="note risk">
+        <b>反直觉实测：并行反而更慢</b>
+        本仓库实测：单进程 <b>2.78s</b>，4 worker <b>6.05s</b>。
+        短用例下进程调度 + 结果回传的开销大于并行收益。
+        <b>别盲信 xdist</b>，用数据决定 <code>workers</code>——套件定义里每个套件单独配了 worker 数就是这个原因。
+      </div>
+
+      <div class="chk-group" data-group="w4">
+        <div class="chk-hd"><span>阶段四验收</span><em></em></div>
+        <label class="check"><input type="checkbox"><span>能说出为什么用 P95 而不是平均值</span></label>
+        <label class="check"><input type="checkbox"><span>人为注入慢接口，性能门禁确实失败（证明其有效）</span></label>
+        <label class="check"><input type="checkbox"><span>能解释为什么性能不放在 PR 门禁里</span></label>
+        <label class="check"><input type="checkbox"><span>性能结果在 Allure 里能看到趋势变化</span></label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 阶段五 安全 ============ -->
+<section id="s5">
+  <h2><span class="idx">5</span>安全测试 · 把一次性扫描做成可回归资产 <span class="tag core">已落地 · 32 条</span></h2>
+  <p class="lead">
+    <code>tests/security/</code> 已建成，覆盖<strong>越权 / 注入转义 / 信息泄露 / 暴露面</strong>四类，
+    独立成套件并接进 CI 夜间 job。它是面试时最能拉开差距的一层——
+    因为它需要你同时懂权限模型、HTTP 语义和"怎么让断言不作假"。
+  </p>
+
+  <div class="note risk">
+    <b>授权边界（必须严格遵守）</b>
+    以下所有用例<b>只对你自己部署的本地 GitLab CE 实例执行</b>。
+    对不属于自己的系统做同样操作是违法行为。这套计划的合规性建立在"靶场是你的"这个前提上。
+  </div>
+
+  <div class="week">
+    <div class="week-hd"><span class="wk">W7</span><h4>四类可自动化安全用例</h4><span class="t">越权 · 注入 · 泄露 · 暴露面</span></div>
+    <div class="week-bd">
+      <div class="goal">
+        <b>核心认知：</b>
+        <div>安全测试的价值不在"扫出漏洞"，而在<b>把安全约束变成可回归的断言</b>——
+        每次发版都自动验证一遍"普通用户还是进不了后台"。一次性扫描报告会过期，可回归用例不会。</div>
+      </div>
+
+      <h3>A · 鉴权与越权（最高价值）</h3>
+      <table>
+        <thead><tr><th style="width:170px">用例</th><th>操作</th><th style="width:150px">期望</th></tr></thead>
+        <tbody>
+          <tr><td>对照组：身份有效性</td><td>第二身份请求 <code>/user</code></td><td>200 且<b>不是管理员</b></td></tr>
+          <tr><td>普通用户读管理端点</td><td>非管理员 Token 请求 <code>/application/settings</code></td><td><b>403</b></td></tr>
+          <tr><td>跨用户私有项目</td><td>普通用户读管理员的私有项目</td><td><b>404</b>（隐藏存在性）</td></tr>
+          <tr><td>跨用户删除</td><td>普通用户删管理员的项目</td><td>403/404，且<b>确认项目还在</b></td></tr>
+          <tr><td>跨用户写入</td><td>普通用户向他人项目提 issue</td><td>403/404，且<b>确认未落库</b></td></tr>
+          <tr><td>字段级越权</td><td>普通用户读管理员用户档案</td><td>200 但<b>不含 email</b></td></tr>
+          <tr><td>未鉴权访问</td><td>不带 Token 请求需鉴权接口</td><td>401</td></tr>
+        </tbody>
+      </table>
+      <div class="note">
+        <b>403 与 404 的分工（这里很容易写错）</b>
+        <b>403</b> = 资源本身存在且可见，但你不能做这个操作（例：管理端点对普通用户）。<br>
+        <b>404</b> = 连"这个资源存在"都不该告诉你（例：别人的私有项目）。
+        对私有资源用 403 反而<b>泄露了存在性</b>——攻击者可以靠 403/404 的差异枚举项目名。<br>
+        所以断言口径是：<b>不能是 200，具体 403 还是 404 取决于资源是否公开</b>。
+        一刀切写 <code>== 403</code> 会误判，写 <code>in (403,404)</code> 才是对的。
+      </div>
+      <div class="note risk">
+        <b>对照组是必须的（写完越权用例才发现）</b>
+        如果 <code>GITLAB_MEMBER_TOKEN</code> 过期，所有越权用例都会收到 401，
+        而 401 在"允许的状态码"里 → 全套照绿。所以必须先有一条
+        "第二身份可用且非管理员"的用例当前置断言。没有它，这个套件就是最危险的那种绿。
+      </div>
+
+      <div class="note risk">
+        <b>探针端点必须先在真实实例上验证存在（本项目实测踩过）</b>
+        原先用例用 <code>/admin/users</code> 做管理员探针，结果<b>管理员访问也返回 404</b>——
+        那是 Web 路径，不是 REST API 端点。它在内置 mock 靶机上"通过"，到真实 GitLab 19 上必然失败。
+        正确探针：<code>/application/settings</code>（管理员 200、普通用户 403、只读且真实存在）。
+        <b>教训：mock 通过 ≠ 真实通过。新探针先用 curl/API 手测一次再写进用例。</b>
+      </div>
+
+      <h3>B · 注入与转义（12 条）</h3>
+      <ul>
+        <li><b>存储型 XSS</b>（3 条）：把 <code>&lt;script&gt;</code> / <code>&lt;img onerror&gt;</code> / <code>javascript:</code>
+        写进 issue 描述，读回断言<b>原样保留</b>，且响应 <code>Content-Type</code> 必须是 <code>application/json</code>。
+        接口层能断言的边界只到这里——"浏览器里会不会执行"是 UI 层的事，写在这里就叫假测试。</li>
+        <li><b>模板注入 SSTI</b>（3 条）：写 <code>{{ 7 * 7 }}</code> / <code>&lt;%= 7 * 7 %&gt;</code> / <code>${7*7}</code>，
+        读回<b>仍含载荷原文、且不含 49</b>。出现 49 说明服务端把用户输入送进了模板引擎，危害远大于反射型 XSS。</li>
+        <li><b>SQL 注入</b>（3 条）：搜索参数传 <code>' OR '1'='1</code> / <code>'; DROP TABLE</code> / <code>UNION SELECT</code>，
+        断言<b>不是 500</b>、正文无 SQL 报错特征、返回条数没有异常放大（防条件恒真）。</li>
+        <li><b>路径穿越</b>（3 条）：<b>必须用原始请求发</b>——原因见下面这条实测。</li>
+        <li><b>命令注入：没做。</b> GitLab 没有可拼接 shell 的入口，硬造只会得到一条永远绿的空用例。</li>
+      </ul>
+      <div class="note risk">
+        <b>实测：路径穿越差点测了个寂寞</b>
+        <code>requests</code> / <code>urllib3</code> 会在发送前把 <code>../</code> 归一化掉，
+        <code>%2e%2e%2f</code> 也会先 unquote 再消解——<b>恶意路径根本没到服务端</b>，
+        返回的是 nginx 的 HTML 登录页。用例"通过"只是因为载荷没发出去。<br>
+        必须用 <code>http.client</code> 直接写请求行（<code>src/gqa/security/raw.py</code>）。
+        判定口径也要放宽：<b>4xx 算拒绝；2xx 也不算漏洞，只要正文里没有 <code>root:x:0:0</code> 这类文件特征</b>——
+        反代把路径归一化到登录页，本来就不是缺陷。
+      </div>
+
+      <h3>C · 信息泄露（8 条）</h3>
+      <ul>
+        <li><b>敏感字段键名黑名单</b>：扫响应 JSON 的<b>键名</b>，不扫值——值里出现 <code>token</code> 太常见（URL、分支名、描述），
+        误报会让人把整个安全套件关掉，那比不测更糟。</li>
+        <li><b>错误响应不吐堆栈</b>：400 / 401 / 404 三种都单独扫。正常响应大家都会查，<b>出错的路径才是最常泄露的地方</b>。</li>
+        <li><b>列表与详情分开看</b>：列表是批量暴露面（一次泄露 N 个项目）；详情按权限模型判定。</li>
+        <li><b>字段级越权</b>：普通用户能读用户档案，但不该看到 <code>email</code>。端点扫描器扫不出这类问题。</li>
+      </ul>
+      <div class="note">
+        <b>实测：runners_token 到底算不算泄露</b>
+        管理员读 <code>/projects</code> 列表，每个项目都带 <code>runners_token</code>。
+        这是<b>权限模型内</b>的行为（admin 对任何项目都有 maintainer 权限），报失败属于误报。
+        于是断言改成用<b>非成员视角</b>读同一个公开项目：拿到才是泄露——可直接注册 runner 截获 CI 任务。<br>
+        同一轮还修掉两个误报：<code>ci_id_token_sub_claim_components</code>（配置项数组）、
+        <code>ci_push_repository_for_job_token_allowed</code>（布尔开关）——名字带 token 但不是凭据。
+        <b>扫描器的白名单和黑名单一样重要</b>，否则红几次就没人看了。
+      </div>
+
+      <h3>D · 暴露面与配置（6 条）</h3>
+      <ul>
+        <li><b>安全响应头</b>：<code>X-Content-Type-Options: nosniff</code>、<code>X-Frame-Options</code>（防点击劫持）。
+        HSTS 只在 https 目标上断言——本地 http 靶场没有是正常的，强断言就是自找假红。</li>
+        <li><b>公开注册</b>：断言 <code>signup_enabled=false</code>。<b>本轮实测就是开着的</b>，已关闭并回读确认。</li>
+        <li><b>匿名可见范围</b>：匿名能列项目不是问题，泄露私有项目才是——断言"每一条都是 public"，而不是"匿名不能访问列表"。</li>
+        <li><b>管理端点匿名不可达</b>：<code>/application/settings</code>、<code>/statistics</code>、<code>/users</code> 均须 401/403/404。</li>
+        <li><b>SSRF / 暴力破解：没做。</b> 需要外部回调地址和多次失败登录，属于 ZAP 这类工具的领域。
+        塞进 pytest 会变慢、变不稳，还会因为"等锁定生效"引入 sleep——正好违背本框架的原则。</li>
+      </ul>
+      <div class="note ok">
+        <b>本轮的真实战果：三个发现，只有一个是产品问题</b>
+        ① <code>signup_enabled=true</code> → 任何人可自助注册，已用 API 关闭；
+        ② 管理员项目列表带 <code>runners_token</code> → 记入报告"已知行为"，改用非成员视角断言；
+        ③ 路径穿越被客户端归一化 → 补原始请求发送器，否则这条测试永远假绿。<br>
+        <b>③ 这类"测试自己的 bug"最值得讲</b>：它说明你有能力怀疑自己的工具，而不只是相信绿色的报告。
+      </div>
+
+      <h3>E · 依赖与镜像（未做，可选）</h3>
+      <ul>
+        <li><code>pip-audit</code> 扫 Python 依赖；<code>trivy</code> 扫容器镜像</li>
+        <li>结果作为 CI 制品保留，<b>高危才阻断</b>（全部阻断会淹没真实问题，最后没人看）</li>
+        <li>为什么先不做：它属于"供应链"而不是"被测系统"，与本套件的信任边界不同，分开跑更清楚</li>
+      </ul>
+
+      <div class="grid2">
+        <div class="box">
+          <h5>产出物（已建成）</h5>
+          <ul>
+            <li><code>tests/security/test_authz.py</code> — 越权 6 条</li>
+            <li><code>tests/security/test_injection.py</code> — 注入转义 12 条</li>
+            <li><code>tests/security/test_leak.py</code> — 信息泄露 8 条</li>
+            <li><code>tests/security/test_exposure.py</code> — 暴露面 6 条</li>
+            <li><code>src/gqa/security/</code> — <code>guard.py</code> 白名单守卫 / <code>scanner.py</code> 扫描器与载荷库 / <code>raw.py</code> 原始请求</li>
+            <li><code>tools/ensure_member.py</code> — 建第二身份并签发 Token</li>
+            <li>新 marker + 新套件：<code>security</code>（夜间 + 发版前）</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h5>工程要点</h5>
+          <ul>
+            <li>失败要<b>附请求证据</b>（根 conftest 已自动挂请求日志），不能只写"断言 403"</li>
+            <li>必须<b>两种身份</b>：管理员 + 普通用户，且先验证第二身份可用</li>
+            <li>独立 job，<b>不在 PR 门禁</b>：会写数据、耗时 30s+，且红了往往要人工判断</li>
+            <li><b>信任边界写进代码</b>：目标不在白名单 → skip，不靠人记得加参数</li>
+          </ul>
+        </div>
+      </div>
+
+      <pre><span class="c"># 越权用例的写法要点
+# 1) 只断言状态码，失败后你只知道"期望 403 实际 200"；
+#    附上响应摘要，才能立刻判断是权限漏了还是接口改了
+# 2) 注意本框架的 Response 是自定义 dataclass：
+#    已解析的 JSON 在 .json_data 上，没有 requests 的 .text / .json()</span>
+def test_member_cannot_read_admin_settings(gl, member_client):
+    assert gl.client.get("/application/settings").status == 200   <span class="c"># 管理员放行</span>
+    r = member_client.client.get("/application/settings",
+                                 expect=(200, 401, 403))
+    attach(f"status={r.status}\n{str(r.json_data)[:500]}", name="响应证据")
+    assert r.status == 403, f"越权成功！HTTP {r.status}"</pre>
+
+      <div class="note ok">
+        <b>最小示范已经做完了</b>
+        实例原本 <code>signup_enabled=true</code>（任何人可自助注册）。
+        先关掉（<code>PUT /application/settings?signup_enabled=false</code>），
+        <b>再写一条用例断言它必须保持关闭</b>——这就是"把安全约束变成可回归资产"：
+        三个月后有人为了拉人把它打开，这条用例会红。
+      </div>
+
+      <div class="chk-group" data-group="w5">
+        <div class="chk-hd"><span>阶段五验收</span><em></em></div>
+        <label class="check"><input type="checkbox"><span>建立 <code>tests/security/</code>，四类各至少 2 条用例</span></label>
+        <label class="check"><input type="checkbox"><span>造出第二个普通用户，能验证跨用户越权</span></label>
+        <label class="check"><input type="checkbox"><span>安全用例失败时 Allure 里有请求证据</span></label>
+        <label class="check"><input type="checkbox"><span>关闭公开注册后，有用例断言它不能再被打开</span></label>
+        <label class="check"><input type="checkbox"><span><code>--suite security</code> 可独立运行并接入 CI</span></label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 阶段六 ============ -->
+<section id="s6">
+  <h2><span class="idx">6</span>回归策略 · 让"变红"这件事可信</h2>
+  <p class="lead">目标：解决自动化测试最大的信任危机——<strong>大家不相信变红是真问题</strong>。</p>
+
+  <div class="week">
+    <div class="week-hd"><span class="wk">W8</span><h4>分层门禁与 flake 治理</h4><span class="t">分类 · 度量 · 可信度</span></div>
+    <div class="week-bd">
+      <table>
+        <thead><tr><th style="width:120px">触发点</th><th style="width:150px">跑什么</th><th style="width:90px">时限</th><th>失败意味着</th></tr></thead>
+        <tbody>
+          <tr><td>每次 commit</td><td><code>unit</code></td><td>&lt; 30s</td><td>框架自身坏了</td></tr>
+          <tr><td>PR 门禁</td><td><code>smoke</code> + <code>api</code></td><td>&lt; 5 min</td><td>核心功能退化，<b>禁止合并</b></td></tr>
+          <tr><td>合并前</td><td><code>regression</code>（含 ui/e2e）</td><td>&lt; 20 min</td><td>业务流退化</td></tr>
+          <tr><td>夜间</td><td><code>all</code> + <code>perf</code> + <code>security</code></td><td>不限</td><td>性能退化 / 安全约束被破坏</td></tr>
+        </tbody>
+      </table>
+
+      <div class="grid2">
+        <div class="box">
+          <h5>四类结论，不是两类（已落地）</h5>
+          <table>
+            <thead><tr><th style="width:110px">判定</th><th style="width:150px">含义</th><th>该做什么</th></tr></thead>
+            <tbody>
+              <tr><td><code>STABLE</code></td><td>N 轮全绿</td><td>结论可信</td></tr>
+              <tr><td><b style="color:var(--risk)"><code>BROKEN</code></b></td><td>N 轮全红</td>
+              <td><b>这是缺陷，不是抖动</b>——别往隔离区丢</td></tr>
+              <tr><td><b style="color:var(--warn)"><code>FLAKY</code></b></td><td>有绿有红</td>
+              <td>抖动率 = 红/（绿+红），留证据后限期隔离</td></tr>
+              <tr><td><code>NO_DATA</code></td><td>N 轮全是 skip</td>
+              <td><b>等于没测</b>，算成"稳定"是最危险的假象</td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:12.5px;color:var(--text-3);margin-top:9px;line-height:1.6">
+            最后一类最容易被漏：因缺 Token 而 skip 的用例，在报告里和通过长得一模一样。
+            区分不了这两件事，稳定性度量就是自欺欺人。
+          </p>
+        </div>
+        <div class="box">
+          <h5>失败分类（categories.json）</h5>
+          <ul>
+            <li><b>产品缺陷</b> → 找开发</li>
+            <li><b>环境问题</b> → 找运维 / 查靶场</li>
+            <li><b>测试脚本问题</b> → 自己改</li>
+            <li><b>基础设施</b> → CI runner / 网络</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="note">
+        <b>为什么分类这么重要</b>
+        一片红的时候，第一问题是"该找谁"。
+        Categories 让你 10 秒内判断该找开发还是查环境——这是<a href="#">工程成熟度的直接体现</a>，
+        也是面试时讲"我怎么让团队重新相信自动化"的核心素材。
+      </div>
+
+      <div class="card">
+        <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/></svg>落地形态 · <code>tools/flake.py</code> + <code>src/gqa/flake/</code></h3>
+        <p>
+          一轮跑绿说明不了什么，能重复 N 轮都绿才叫稳定。采样器把一套用例重复跑 N 轮，
+          逐条给出上面的四类判定——<b>不是"通过率"，是每条用例的可信度画像</b>。
+        </p>
+
+        <pre><span class="c"># 重复 5 轮采样。轮次是有代价的选择：5 轮能把 20% 的抖动抓出来，
+# 想证伪 1% 的抖动要上百轮，成本远高于收益——默认值取 5</span>
+python tools/flake.py --suite smoke --rounds 5
+
+<span class="c"># 实测输出（4 轮，含一个故意写出的演示文件，验完即删）：
+#   FFFF   100%   持续失败   ← 真缺陷，不是"100% 抖动"
+#   FPFP    50%   抖动       ← 只有这一条才该进隔离区
+#   SSSS     0%   无有效数据 ← 全程 skip，不能算稳定</span>
+
+<span class="c"># 门禁：单条抖动率超过阈值就退出非 0（退出码 2=持续失败 / 3=抖动超阈值）</span>
+python tools/flake.py --suite api --rounds 7 --max-flake-rate 0.05
+
+<span class="c"># 隔离区体检：CI 每次提交都跑</span>
+python tools/flake.py --check-quarantine --verify-nodeids</pre>
+
+        <div class="grid2">
+          <div class="box">
+            <h5>隔离区是收费的</h5>
+            <ul>
+              <li>每条必须有 <code>reason</code> 和 <code>due</code>，缺一样 CI 就红</li>
+              <li><b>到期自动失效</b>，用例回到门禁里继续跑——不可以自动续期</li>
+              <li><code>--include-quarantine</code> 强制连它们一起跑，验收修复是否真生效</li>
+              <li>规模超 8 条报警：否则"临时豁免"会变成常态</li>
+              <li>核对名单里的用例是否还存在（改名后记录会过期）</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h5>重试必须上报</h5>
+            <ul>
+              <li>框架<b>不做全局失败重跑</b>：偶现失败是信号，重跑成绿等于消灭信号</li>
+              <li>只有显式 <code>@pytest.mark.flaky</code> 的用例才重试</li>
+              <li>次数写进 Allure 附件 + <code>artifacts/flake/reruns.jsonl</code> 累积留痕</li>
+              <li>看得出"这条本周靠重试混过去 6 次了"——这才叫可审计</li>
+            </ul>
+          </div>
+        </div>
+
+        <div class="note risk">
+          <b>三个踩过的坑</b>
+          <ul style="margin:6px 0 0 18px">
+            <li><b>nodeid 必须对得上</b>：JUnit 把模块写成包路径、把类塞进 <code>classname</code>，
+            拼错不会报错，只表现为"加了隔离却照跑不误"</li>
+            <li><b>N 轮 × Allure 会毁掉趋势</b>：同一批用例重复写进主结果目录，
+            Allure 会把一次采样当成 N 次运行——采样只留 junit，不写 alluredir</li>
+            <li><b>Windows 上 <code>os.environ[k] = ""</code> 等于删除变量</b>：跑靶机时想停用第二身份，
+            写空串后 <code>load_dotenv</code> 又把真 Token 填回来。必须用非空占位符</li>
+          </ul>
+        </div>
+
+        <div class="note ok">
+          隔离区闭环已实测 10 步：加入 → 跳过（reason 带期限/负责人/原因）→ 强制包含恢复执行 →
+          到期自动失效 → 体检报出「缺期限 / 已到期 / 用例不存在」并退 4 → 移出 → 空名单体检通过。
+        </div>
+      </div>
+
+      <div class="chk-group" data-group="w6">
+        <div class="chk-hd"><span>阶段六验收</span><em></em></div>
+        <label class="check"><input type="checkbox"><span>能说清每个触发点跑什么、为什么这么分</span></label>
+        <label class="check"><input type="checkbox"><span>四类失败都能在 Allure Categories 里正确归类</span></label>
+        <label class="check"><input type="checkbox"><span>有一条被标记为 flake 的用例，并给出抖动证据</span></label>
+        <label class="check"><input type="checkbox"><span>PR 门禁能在 5 分钟内跑完并阻断合并</span></label>
+      </div>
+
+      <div class="card">
+        <h3><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M6 6l1 15h10l1-15"/></svg>运行产物治理 · 定时清日志 / 截图 / 报告</h3>
+        <p>测试跑得越久，磁盘越可能先扛不住。四类产物增长方式不同，但都会堆：</p>
+        <table>
+          <thead><tr><th style="width:190px">目录</th><th style="width:150px">谁写的</th><th>增长速度</th></tr></thead>
+          <tbody>
+            <tr><td><code>gitlab-qa/artifacts/</code></td><td>UI 用例</td><td>每条用例一个 <code>trace.zip</code>（1–5 MB），失败再加截图 + DOM 快照</td></tr>
+            <tr><td><code>gitlab-qa/allure-results/</code></td><td>pytest</td><td>每次运行一批 JSON + 附件</td></tr>
+            <tr><td><code>gitlab-qa/allure-report/</code></td><td><code>allure generate</code></td><td>可重建，但会留多份</td></tr>
+            <tr><td><code>gitlab-ce/logs/</code></td><td><code>deploy.ps1</code> / <code>verify_browser.py</code></td><td>每次部署一份日志 + 若干截图</td></tr>
+          </tbody>
+        </table>
+
+        <div class="grid2">
+          <div class="box">
+            <h5>三条保留规则（同时生效，取最保守）</h5>
+            <ul>
+              <li><b>按时间</b>：只删 N 天前的（默认 7）</li>
+              <li><b>按体积</b>：单目录超 M MB 时从最旧删到阈值内（默认 1024）</li>
+              <li><b>按数量</b>：每个目录至少留最新 K 个（默认 3），防止清空</li>
+            </ul>
+          </div>
+          <div class="box">
+            <h5>两个东西永远不删</h5>
+            <ul>
+              <li><code>allure-results/history/</code> —— 趋势图的原料，删了报告永远是孤立快照</li>
+              <li><code>allure-report/history/</code> —— <code>run.py</code> 从这里继承上一次的历史</li>
+              <li>顺带保护 <code>.env</code> / README（配置不能被"清理"掉）</li>
+            </ul>
+          </div>
+        </div>
+
+        <pre><span class="c"># 先预览：这一步不删任何文件
+# 实测输出：删除 42 个 / 70.5 MB，保留 3 个，失败 0</span>
+python tools/cleanup.py --dry-run
+
+<span class="c"># 按 .env 策略执行（CLEANUP_* 四个键）</span>
+python tools/cleanup.py
+
+<span class="c"># 临时改策略：只清日志、只留 3 天</span>
+python tools/cleanup.py --targets logs --days 3
+
+<span class="c"># Windows：注册每日 03:00 计划任务（时间可配置，策略写回 .env）</span>
+powershell -ExecutionPolicy Bypass -File tools\schedule_cleanup.ps1 -Time 03:00 -Days 7
+
+<span class="c"># Linux / macOS：打印 crontab 行</span>
+python tools/cleanup.py --print-cron</pre>
+
+        <div class="note">
+          <b>为什么逐文件删，而不是 <code>rm -rf</code></b>
+          公司终端和带 DLP 的机器会拦批量删除，甚至在删除过程中把进程干掉——
+          表现是"脚本跑了，但什么都没删"，而且不报错。
+          所以 <code>cleanup.py</code> 逐个 <code>unlink</code>、单个失败只记录不中断，最后把失败原因打出来；
+          <b>有失败就返回非 0</b>，让计划任务显示异常，而不是静默失效。
+          删除前还会校验路径必须落在目标目录内——防软链接把删除带到项目外。
+        </div>
+
+        <p style="font-size:13px;color:var(--text-2)">
+          CI 里另有两道防线：GitLab CI 的 <code>artifacts.expire_in</code>（3/7/30 天）由平台自动清；
+          定时流水线末尾的 <code>cleanup</code> job 负责清 runner 本地磁盘，
+          它挂在 <code>stage: .post</code>——保证在所有测试之后跑，不会删掉本次刚产出的证据。
+        </p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 阶段七 ============ -->
+<section id="s7">
+  <h2><span class="idx">7</span>CI/CD · 测试结果要能自己说话</h2>
+  <p class="lead">目标：本地跑通只完成了一半。另一半是<strong>没人在场时，它也能跑、能报告、能拦住</strong>。</p>
+
+  <div class="week">
+    <div class="week-hd"><span class="wk">W9</span><h4>双平台流水线</h4><span class="t">GH Actions · GitLab CI · 趋势 · 门禁</span></div>
+    <div class="week-bd">
+      <div class="grid2">
+        <div class="box">
+          <h5>动手</h5>
+          <ul>
+            <li><code>.github/workflows/ci.yml</code> + <code>.gitlab-ci.yml</code> <b>双跑</b></li>
+            <li>分层 job：unit / smoke / api / ui / perf / security</li>
+            <li>制品归档 <code>allure-results</code>，报告发布 Pages</li>
+            <li>报告<b>汉化后处理</b>：<code>localize_report.py</code></li>
+          </ul>
+        </div>
+        <div class="box">
+          <h5>趋势怎么来的</h5>
+          <ul>
+            <li><code>history/</code> 目录跨次累积 → Allure 趋势图</li>
+            <li>CI 里要<b>把 history 持久化</b>（cache / artifact），否则每次都是孤点</li>
+            <li>清理结果时保留 history，别用 <code>--clean-alluredir</code></li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="note">
+        <b>报告汉化的正确做法</b>
+        Allure 2.29 <b>自带中文语言包</b>，只是 index.html 写死了 <code>&lt;html lang="en"&gt;</code>。
+        但 <code>allure generate</code> <b>每次都会重写 index.html</b>，所以汉化必须做成<b>生成后的后处理</b>，
+        而不是改一次就完事 —— 见 <code>tools/localize_report.py</code>，已接进 run.py 和两条 CI。
+        它只补默认值，不覆盖你手动选过的语言。
+      </div>
+
+      <div class="note risk">
+        <b>CI 里最容易翻车的三点</b>
+        ① <b>插件冲突</b>：CI 镜像装了 playwright 插件就抢固件名，固定加 <code>-p no:playwright</code>；
+        ② <b>工作目录</b>： subprocess 不继承 shell 的 cd，相对路径会解析错（本项目踩过，改成显式 WorkingDirectory）；
+        ③ <b>退出码</b>：门禁靠退出码阻断，报告生成失败却吞掉退出码 = 门禁形同虚设。
+      </div>
+
+      <div class="chk-group" data-group="w7">
+        <div class="chk-hd"><span>阶段七验收</span><em></em></div>
+        <label class="check"><input type="checkbox"><span>两条流水线都能独立跑通并产出 Allure 报告</span></label>
+        <label class="check"><input type="checkbox"><span>报告的语言是中文，且连续跑两次仍有趋势图</span></label>
+        <label class="check"><input type="checkbox"><span>故意让一条用例失败，流水线确实被阻断（红叉）</span></label>
+        <label class="check"><input type="checkbox"><span>安全套件作为独立 job 出现，夜间触发</span></label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 阶段八 ============ -->
+<section id="s8">
+  <h2><span class="idx">8</span>面试转化 · 把工程经历讲成能力证据</h2>
+  <p class="lead">目标：面试官不关心你写了多少条用例，关心你<strong>踩过什么坑、怎么判断、怎么取舍</strong>。</p>
+
+  <div class="week">
+    <div class="week-hd"><span class="wk">W10</span><h4>怎么讲这个项目</h4><span class="t">STAR · 追问 · 简历</span></div>
+    <div class="week-bd">
+      <div class="grid2">
+        <div class="box">
+          <h5>讲什么（按含金量排序）</h5>
+          <ul>
+            <li><b>分层设计</b>：为什么这么分，每层什么时候跑</li>
+            <li><b>踩坑与定位</b>：keep-alive 残留字节导致的随机失败</li>
+            <li><b>反直觉结论</b>：并行反而更慢，用数据决定 worker 数</li>
+            <li><b>有效性意识</b>：断言必须能失败；门禁必须证明有效</li>
+            <li><b>安全维度</b>：把安全约束变成可回归资产</li>
+          </ul>
+        </div>
+        <div class="box">
+          <h5>不要讲什么</h5>
+          <ul>
+            <li>"我写了 50 条用例" —— 数量不代表能力</li>
+            <li>"用了 pytest + requests + Playwright" —— 这只是工具名词</li>
+            <li>"CI/CD 都配好了" —— 要说清门禁<b>拦住了什么</b></li>
+            <li>把环境问题讲成自己的功劳或别人的锅 —— 要说<b>如何分辨</b></li>
+          </ul>
+        </div>
+      </div>
+
+      <h3>高频追问与回答方向</h3>
+      <table>
+        <thead><tr><th style="width:230px">追问</th><th>你要答到的点</th></tr></thead>
+        <tbody>
+          <tr><td>用例失败了你怎么排查？</td><td>先分类（产品/环境/脚本/基建），Categories 直接给出方向；偶发则先怀疑连接复用</td></tr>
+          <tr><td>怎么防止假通过？</td><td>缺 Token 时 skip 而非 pass；断言必须能失败；变异测试验证</td></tr>
+          <tr><td>为什么 UI 只测这些？</td><td>成本账：一条 UI 的维护成本≈十条 API，业务组合下沉到 API 层</td></tr>
+          <tr><td>性能阈值怎么定的？</td><td>P95 而非均值；阈值可调；<b>注入慢接口证明门禁有效</b></td></tr>
+          <tr><td>自动化覆盖率多少？</td><td>不讲百分比，讲<b>分层门禁拦住了什么</b>——这比数字可信</td></tr>
+          <tr><td>怎么保证用例不互相影响？</td><td>数据自造自清、清理幂等、随机顺序仍能过</td></tr>
+        </tbody>
+      </table>
+
+      <div class="note ok">
+        <b>简历写法示例</b>
+        基于 GitLab CE 搭建企业级自动化测试框架（pytest + requests + Playwright + Allure），
+        设计 unit/smoke/api/ui/e2e/perf/security 七层测试体系与分级 CI 门禁；
+        通过契约三层校验拦截服务端字段类型漂移，建立安全回归套件将越权与暴露面约束固化为可执行断言。
+      </div>
+
+      <div class="chk-group" data-group="w8">
+        <div class="chk-hd"><span>阶段八验收</span><em></em></div>
+        <label class="check"><input type="checkbox"><span>能在 3 分钟内讲清分层设计与取舍理由</span></label>
+        <label class="check"><input type="checkbox"><span>能讲出 3 个自己定位并解决的真实坑（含根因）</span></label>
+        <label class="check"><input type="checkbox"><span>能回答"怎么防止假通过"且不止一种手段</span></label>
+        <label class="check"><input type="checkbox"><span>简历描述已改写成能力导向而非工具罗列</span></label>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ 总清单 ============ -->
+<section id="s9">
+  <h2><span class="idx"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg></span>自检总清单</h2>
+  <p class="lead">勾选状态自动保存到本机浏览器，换设备不丢失（清空需清 localStorage）。打印时会保留当前勾选。</p>
+
+  <div class="card">
+    <div class="chk-hd" style="padding:0 0 8px"><span>全部验收项</span><em id="total-em"></em></div>
+    <div id="all-groups"></div>
+  </div>
+
+  <div class="footnote">
+    <p><b>使用建议</b>：每周开始前先看该阶段的"核心认知"，它说的是<b>为什么</b>——
+    只照做不理解为啥，面试一追问就露馅。每个阶段验收项全部勾选后再进入下一阶段。</p>
+    <p class="noprint"><b>打印 / 导出 PDF</b>：点左侧「打印 / 导出 PDF」，或浏览器 Ctrl/Cmd+P。
+    纸张 A4、页边距选「默认」、勾上「背景图形」。
+    首页会自动生成封面并填入<b>当天日期</b>与<b>当前勾选进度</b>；
+    长表格跨页会重复表头、代码块自动换行、架构图缩放到页面宽度——直接打就是一份可手写批注的纸质计划。</p>
+    <p class="noprint">相关文件：<code>gitlab-qa/</code>（框架本体）、<code>gitlab-ce/</code>（部署与靶场）、
+    <code>gitlab-qa/tests/security/</code>（安全用例）、<code>gitlab-qa/src/gqa/security/</code>（守卫与扫描器）、
+    <code>gitlab-qa/tools/cleanup.py</code>（产物清理）、<code>gitlab-qa/tools/schedule_cleanup.ps1</code>（定时任务）、
+    <code>gitlab-qa/tools/flake.py</code>（稳定性采样 + 隔离区体检）、<code>gitlab-qa/flake/quarantine.json</code>（隔离区名单）。</p>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+(function(){
+  var KEY = 'gitlab-qa-study-plan-v1';
+  var boxes = Array.prototype.slice.call(document.querySelectorAll('.check input'));
+  var groups = Array.prototype.slice.call(document.querySelectorAll('.chk-group'));
+
+  // 恢复
+  var saved = {};
+  try { saved = JSON.parse(localStorage.getItem(KEY) || '{}'); } catch(e){ saved = {}; }
+  boxes.forEach(function(b, i){
+    var id = 'c' + i;
+    b.dataset.id = id;
+    if (saved[id]) b.checked = true;
+    b.addEventListener('change', function(){
+      saved[id] = b.checked;
+      try { localStorage.setItem(KEY, JSON.stringify(saved)); } catch(e){}
+      refresh();
+    });
+  });
+
+  // 分组计数
+  function refresh(){
+    groups.forEach(function(g){
+      var bs = Array.prototype.slice.call(g.querySelectorAll('input'));
+      var n = bs.filter(function(b){ return b.checked; }).length;
+      var em = g.querySelector('.chk-hd em');
+      if (em) em.textContent = n + '/' + bs.length;
+    });
+    var total = boxes.filter(function(b){ return b.checked; }).length;
+    var pct = Math.round(total / boxes.length * 100);
+    document.getElementById('pct').textContent = pct + '%';
+    document.getElementById('bar').style.width = pct + '%';
+    var te = document.getElementById('total-em');
+    if (te) te.textContent = total + '/' + boxes.length;
+  }
+
+  // 总清单：把各阶段验收聚合展示（引用同一批 checkbox 的勾选状态显示）
+  var all = document.getElementById('all-groups');
+  groups.forEach(function(g){
+    var hd = g.querySelector('.chk-hd span');
+    var sec = g.closest('section');
+    var title = sec ? sec.querySelector('h2').textContent.trim() : '';
+    var wrap = document.createElement('div');
+    wrap.className = 'chk-group';
+    var head = document.createElement('div');
+    head.className = 'chk-hd';
+    head.innerHTML = '<span>' + (hd ? hd.textContent : '验收') + ' · ' + title.replace(/^\d+/, '') + '</span><em></em>';
+    wrap.appendChild(head);
+    Array.prototype.slice.call(g.querySelectorAll('.check')).forEach(function(c){
+      var idx = boxes.indexOf(c.querySelector('input'));
+      var row = document.createElement('label');
+      row.className = 'check';
+      row.innerHTML = '<input type="checkbox" data-mirror="' + idx + '"><span>' + c.querySelector('span').textContent + '</span>';
+      wrap.appendChild(row);
+    });
+    all.appendChild(wrap);
+  });
+  // 镜像联动
+  var mirrors = Array.prototype.slice.call(document.querySelectorAll('input[data-mirror]'));
+  mirrors.forEach(function(m){
+    var src = boxes[+m.dataset.mirror];
+    m.checked = src.checked;
+    m.addEventListener('change', function(){
+      src.checked = m.checked;
+      src.dispatchEvent(new Event('change'));
+    });
+  });
+
+  refresh();
+
+  // 打印封面：填当天日期与当前进度。beforeprint 时再刷一次，
+  // 这样打印出来的纸面能直接当进度记录用，不用手写日期。
+  function stampCover(){
+    var d = new Date();
+    var el = document.getElementById('print-date');
+    if (el) {
+      el.textContent = d.getFullYear() + ' 年 ' + (d.getMonth() + 1) + ' 月 '
+                     + d.getDate() + ' 日';
+    }
+    var pg = document.getElementById('print-progress');
+    if (pg) {
+      var done = boxes.filter(function(b){ return b.checked; }).length;
+      pg.textContent = done + ' / ' + boxes.length + ' 项';
+    }
+  }
+  stampCover();
+  window.addEventListener('beforeprint', stampCover);
+
+  // 导航高亮
+  var links = Array.prototype.slice.call(document.querySelectorAll('.nav a'));
+  var secs = links.map(function(a){ return document.querySelector(a.getAttribute('href')); });
+  window.addEventListener('scroll', function(){
+    var y = window.scrollY + 120, cur = 0;
+    secs.forEach(function(s, i){ if (s && s.offsetTop <= y) cur = i; });
+    links.forEach(function(a, i){ a.classList.toggle('on', i === cur); });
+  }, {passive:true});
+})();
+</script>
+</body>
+</html>

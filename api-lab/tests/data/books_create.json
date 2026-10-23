@@ -1,0 +1,45 @@
+[
+  {
+    "case_id": "minimal-ok",
+    "payload": {"title": "最小合法载荷", "author": "某人", "genre": "fiction"},
+    "expect_status": 201,
+    "expect_code": null
+  },
+  {
+    "case_id": "missing-title",
+    "payload": {"author": "某人", "genre": "fiction"},
+    "expect_status": 400,
+    "expect_code": "VALIDATION_ERROR"
+  },
+  {
+    "case_id": "missing-author",
+    "payload": {"title": "有书名", "genre": "fiction"},
+    "expect_status": 400,
+    "expect_code": "VALIDATION_ERROR"
+  },
+  {
+    "case_id": "bad-genre",
+    "payload": {"title": "怪类型", "author": "某人", "genre": "poetry"},
+    "expect_status": 400,
+    "expect_code": "VALIDATION_ERROR"
+  },
+  {
+    "case_id": "empty-title",
+    "payload": {"title": "", "author": "某人", "genre": "fiction"},
+    "expect_status": 400,
+    "expect_code": "VALIDATION_ERROR"
+  },
+  {
+    "case_id": "full-fields",
+    "payload": {
+      "title": "字段齐全",
+      "author": "某人",
+      "genre": "science",
+      "published_year": 2021,
+      "price": 88.8,
+      "in_stock": false
+    },
+    "expect_status": 201,
+    "expect_code": null
+  }
+]

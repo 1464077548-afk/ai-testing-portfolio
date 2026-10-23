@@ -1,0 +1,55 @@
+[project]
+name = "gitlab-qa"
+version = "0.1.0"
+description = "GitLab CE 企业级自动化测试框架：API / UI / 冒烟 / 回归 / 性能"
+requires-python = ">=3.11"
+dependencies = ["requests>=2.31"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-xdist>=3.5",
+    "pytest-rerunfailures>=14.0",
+    "allure-pytest>=2.13",
+    "playwright>=1.45",
+    "pydantic>=2.6",
+    "jsonschema>=4.21",
+    "faker>=24.0",
+    "python-dotenv>=1.0",
+    "tenacity>=8.3",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+# --strict-markers：写错 marker 直接报错，避免「打了标签却没生效」
+# -p no:base_url    pytest-base-url 也会注册 --base-url，与本框架同名，
+#                   不屏蔽的话 pytest 在收集前就因选项冲突直接崩（不是用例失败）。
+# -p no:playwright  同理：它会注入自己的 page/context 固件，
+#                   与本框架的 UI 固件抢名字，屏蔽后由本框架全权管理浏览器生命周期。
+addopts = "-ra --strict-markers -p no:base_url -p no:playwright"
+markers = [
+    "smoke: 冒烟，PR 门禁必跑，2 分钟内跑完",
+    "regression: 回归，主干合并前跑",
+    "api: REST API 测试",
+    "ui: Playwright 界面测试",
+    "perf: 性能测试，有阈值门禁",
+    "security: 安全测试，仅对自有实例执行（目标白名单守卫）",
+    "e2e: 端到端业务流",
+    "contract: 响应结构与契约一致性",
+    "destructive: 会写数据，prod 环境自动跳过",
+    "requires_token: 需要管理员 Token，缺失时 skip 而不是 pass",
+    "slow: 耗时用例，仅夜间跑",
+    "flaky: 已知不稳定，允许有限重试；重试次数会上报 Allure（不做全局重跑）",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:urllib3.*",
+]

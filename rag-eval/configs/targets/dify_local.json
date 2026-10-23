@@ -1,0 +1,20 @@
+{
+  "kind": "dify",
+  "name": "dify-local",
+  "version": "1.x",
+  "base_url": "http://localhost/v1",
+  "api_key_env": "DIFY_API_KEY",
+  "app_type": "chat",
+  "response_mode": "blocking",
+  "user_prefix": "rag-eval",
+  "timeout": 60,
+  "mapping": {
+    "answer_path": "answer",
+    "contexts_path": "metadata.retriever_resources",
+    "doc_id_field": "document_name",
+    "chunk_id_field": "segment_id",
+    "text_field": "content",
+    "score_field": "score",
+    "doc_id_strip_suffix": true
+  }
+}

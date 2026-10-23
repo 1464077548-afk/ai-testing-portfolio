@@ -1,0 +1,6 @@
+{
+  "kind": "mock",
+  "name": "mock",
+  "version": "0.1.0",
+  "corpus": "datasets/corpus/policy.jsonl"
+}

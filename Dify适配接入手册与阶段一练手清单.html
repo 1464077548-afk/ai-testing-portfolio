@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dify 适配接入手册 &amp; 阶段一开源练手清单</title>
+<style>
+:root{
+  --bg:#FFFFFF; --surface:#FAFAF8; --surface2:#F3F2ED;
+  --line:rgba(0,0,0,0.12); --line2:rgba(0,0,0,0.06);
+  --text:#1F1F1E; --muted:#6B6A66; --faint:#93918B;
+  --accent:#0F6E56; --accentbg:#E1F5EE;
+  --amber:#854F0B; --amberbg:#FAEEDA;
+  --blue:#185FA5; --bluebg:#E6F1FB;
+  --red:#A32D2D; --redbg:#FCEBEB;
+  --code:#F7F6F2;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC","Hiragino Sans GB","Microsoft YaHei",sans-serif;
+  font-size:14px;line-height:1.68;-webkit-font-smoothing:antialiased}
+h1,h2,h3,h4{margin:0;font-weight:500}
+p{margin:0}
+code{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;font-size:.88em;
+  background:var(--code);padding:1px 5px;border-radius:4px;border:1px solid var(--line2)}
+pre{font-family:"SFMono-Regular",Consolas,"Liberation Mono",Menlo,monospace;
+  font-size:12px;line-height:1.6;background:var(--code);border:1px solid var(--line2);
+  border-radius:8px;padding:13px 15px;overflow-x:auto;margin:0}
+pre code{background:none;border:none;padding:0;font-size:inherit}
+a{color:var(--blue);text-decoration:none}
+
+.shell{display:grid;grid-template-columns:212px minmax(0,1fr);max-width:1180px;margin:0 auto}
+.side{position:sticky;top:0;height:100vh;padding:28px 16px;border-right:1px solid var(--line2);overflow-y:auto}
+.brand{display:flex;align-items:center;gap:8px;margin-bottom:18px}
+.brand b{font-size:13px;font-weight:500;line-height:1.35}
+.brand span{display:block;font-size:11px;color:var(--faint);font-weight:400}
+.toc{display:flex;flex-direction:column;gap:1px}
+.toc a{font-size:12.5px;color:var(--muted);padding:5px 8px;border-radius:6px}
+.toc a:hover{background:var(--surface2);color:var(--text)}
+.toc .grp{font-size:10.5px;letter-spacing:.06em;color:var(--faint);padding:12px 8px 4px}
+main{padding:34px 40px 80px;min-width:0}
+
+.eyebrow{font-size:11px;letter-spacing:.08em;color:var(--faint);text-transform:uppercase}
+h1{font-size:25px;margin:8px 0 10px;line-height:1.3}
+.sub{font-size:14px;color:var(--muted);max-width:68ch}
+.meta{display:flex;flex-wrap:wrap;gap:8px;margin-top:16px}
+.chip{font-size:12px;padding:3px 10px;border-radius:20px;background:var(--surface2);color:var(--muted);border:1px solid var(--line2)}
+.toolbar{display:flex;gap:8px;margin-top:18px}
+.btn{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:7px 12px;border-radius:7px;
+  border:1px solid var(--line);background:#fff;cursor:pointer;font-family:inherit;color:var(--text)}
+.btn:hover{background:var(--surface2)}
+
+section{margin-top:38px;scroll-margin-top:18px}
+.sec-head{display:flex;align-items:baseline;gap:10px;border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:15px}
+.sec-head .n{font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
+h2{font-size:17px}
+h3{font-size:13.5px;margin:20px 0 8px}
+p.lead{font-size:13px;color:var(--muted);margin-bottom:13px;max-width:76ch}
+p.body{font-size:13.5px;margin-bottom:10px}
+
+table{width:100%;border-collapse:collapse;font-size:12.5px;margin:6px 0 4px}
+th,td{text-align:left;padding:8px 10px;border-bottom:1px solid var(--line2);vertical-align:top}
+th{font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--faint);font-weight:500;background:var(--surface)}
+td:first-child{white-space:nowrap}
+table.wide td:first-child{white-space:normal;font-weight:500}
+.tag{display:inline-block;font-size:10.5px;padding:1px 6px;border-radius:4px;border:1px solid var(--line2);color:var(--muted);white-space:nowrap}
+.tag.g{background:var(--accentbg);color:var(--accent);border-color:rgba(15,110,86,.2)}
+.tag.a{background:var(--amberbg);color:var(--amber);border-color:rgba(133,79,11,.2)}
+.tag.b{background:var(--bluebg);color:var(--blue);border-color:rgba(24,95,165,.2)}
+.tag.r{background:var(--redbg);color:var(--red);border-color:rgba(163,45,45,.2)}
+
+.note{padding:13px 15px;border-radius:9px;background:var(--surface);border:1px solid var(--line2);font-size:13px;margin-top:13px}
+.note b{font-weight:500}
+.note.warn{background:var(--redbg);border-color:rgba(163,45,45,.18)}
+.note.warn b{color:#791F1F}
+.note.ok{background:var(--accentbg);border-color:rgba(15,110,86,.18)}
+.note.ok b{color:#085041}
+.note.amber{background:var(--amberbg);border-color:rgba(133,79,11,.18)}
+.note.amber b{color:#633806}
+
+.flow{background:var(--surface);border:1px solid var(--line2);border-radius:10px;padding:14px 10px;margin:10px 0}
+.flow svg{display:block;width:100%;height:auto}
+
+.steps{counter-reset:s;list-style:none;padding:0;margin:0}
+.steps li{counter-increment:s;display:flex;gap:11px;padding:9px 0;border-bottom:1px solid var(--line2);font-size:13px}
+.steps li:last-child{border-bottom:none}
+.steps li::before{content:counter(s,decimal-leading-zero);font-size:11px;color:var(--faint);
+  font-variant-numeric:tabular-nums;flex:none;padding-top:2px;width:18px}
+.steps b{font-weight:500}
+
+.mobbar{display:none}
+@media (max-width:980px){
+  .shell{grid-template-columns:1fr}
+  .side{position:static;height:auto;border-right:none;border-bottom:1px solid var(--line2);padding:14px 18px}
+  .toc{flex-direction:row;overflow-x:auto;gap:2px}
+  .toc a{white-space:nowrap;font-size:12px}
+  .toc .grp{display:none}
+  main{padding:24px 18px 80px}
+  h1{font-size:21px}
+}
+@media (max-width:640px){
+  main{padding:20px 15px 80px}
+  pre{font-size:10.5px;padding:11px 12px}
+  table{font-size:12px}
+  th,td{padding:7px 7px}
+  td:first-child{white-space:normal}
+}
+@media print{
+  @page{size:A4;margin:13mm 12mm}
+  body{font-size:9.8pt;line-height:1.5}
+  .shell{display:block;max-width:none}
+  .side,.toolbar{display:none !important}
+  main{padding:0}
+  h1{font-size:19pt;margin:0 0 5pt}
+  h2{font-size:13pt}
+  h3{font-size:11pt;margin:12pt 0 4pt}
+  section{margin-top:14pt}
+  .sec-head{margin-bottom:8pt;padding-bottom:4pt}
+  p.lead{font-size:9.4pt}
+  table{font-size:8.8pt}
+  th,td{padding:3.5pt 5pt}
+  pre{font-size:8.2pt;line-height:1.4;padding:7pt 9pt;break-inside:avoid}
+  .note,.flow,.card{break-inside:avoid}
+  .tag{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .printfoot{display:block !important;margin-top:12pt;font-size:8pt;color:#888;border-top:1px solid #ddd;padding-top:5pt}
+}
+.printfoot{display:none}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="side">
+    <div class="brand">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <rect x="1" y="1" width="22" height="22" rx="6" stroke="#0F6E56" stroke-width="1.2"/>
+        <path d="M7 8.5h5M7 12h9M7 15.5h6" stroke="#0F6E56" stroke-width="1.2" stroke-linecap="round"/>
+        <circle cx="17.5" cy="8.5" r="2" stroke="#185FA5" stroke-width="1.2"/>
+      </svg>
+      <b>Dify 接入手册<span>阶段一靶场清单</span></b>
+    </div>
+    <nav class="toc">
+      <div class="grp">A · 适配层</div>
+      <a href="#why">01 为什么选 Dify</a>
+      <a href="#deploy">02 三种起步路径</a>
+      <a href="#steps">03 六步接入</a>
+      <a href="#mapping">04 字段映射</a>
+      <a href="#doctor">05 三类典型故障</a>
+      <a href="#traps">06 常见坑</a>
+      <a href="#accept">07 验收清单</a>
+      <div class="grp">B · 阶段一靶场</div>
+      <a href="#criteria">08 选靶子的标准</a>
+      <a href="#apis">09 公开 API 靶场</a>
+      <a href="#repos">10 真实仓库练手</a>
+      <a href="#pr">11 第一个 PR</a>
+      <a href="#weekly">12 四周排布</a>
+    </nav>
+  </aside>
+
+  <main>
+    <header>
+      <div class="eyebrow">Phase 03 前置 · 配套 rag-eval</div>
+      <h1>Dify 适配接入手册 &amp; 阶段一开源练手清单</h1>
+      <p class="sub">上半部分讲怎么把 rag-eval 接到真实 RAG 系统上（以 Dify 为第一靶子，已实现并通过 28 项离线契约验收）；下半部分解决阶段一"没有真实项目可练"的问题，给出可注册即用、可提 PR 的靶子清单。</p>
+      <div class="meta">
+        <span class="chip">适配器已实现</span>
+        <span class="chip">28 项契约测试通过</span>
+        <span class="chip">零第三方依赖</span>
+        <span class="chip">含 doctor 自检命令</span>
+      </div>
+      <div class="toolbar">
+        <button class="btn" onclick="window.print()">
+          <svg width="13" height="13" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M4.5 5.5V2.5h7v3M4.5 12.5H3a1 1 0 01-1-1v-4a1 1 0 011-1h10a1 1 0 011 1v4a1 1 0 01-1 1h-1.5" stroke="#1F1F1E" stroke-width="1.2" stroke-linecap="round"/>
+            <rect x="4.5" y="9.5" width="7" height="4" rx=".6" stroke="#1F1F1E" stroke-width="1.2"/>
+          </svg>
+          打印 / 导出 PDF
+        </button>
+      </div>
+    </header>
+
+    <section id="why">
+      <div class="sec-head"><span class="n">01</span><h2>为什么第一靶子选 Dify</h2></div>
+      <p class="lead">选靶子不能只看"火不火"，要看它<b>能不能吐出评测需要的数据</b>。评测 RAG 最核心的信息是"系统到底召回了什么"，没有这个，检索层指标全部无从谈起。</p>
+      <table class="wide">
+        <thead><tr><th>候选</th><th>能否返回引用片段</th><th>部署成本</th><th>岗位相关度</th><th>结论</th></tr></thead>
+        <tbody>
+          <tr><td>Dify</td><td><span class="tag g">返回</span> document_name / segment_id / score / content</td><td>云沙箱零部署；本地约 6 个容器</td><td>国内最高</td><td>主靶子</td></tr>
+          <tr><td>RAGFlow</td><td><span class="tag g">返回</span> 引用块与相似度</td><td>本地约 4-5 个容器，吃内存</td><td>较高</td><td>第二靶子，可选</td></tr>
+          <tr><td>FastGPT</td><td><span class="tag a">部分</span> 需开启引用，结构与 Dify 不同</td><td>中等</td><td>中等</td><td>走 openai_compat + 自定义映射</td></tr>
+          <tr><td>LangChain 模板</td><td><span class="tag r">不返回</span> 需自己加回调</td><td>低（本地 Python）</td><td>偏低</td><td>不适合做检索评测靶子</td></tr>
+          <tr><td>自建 RAG</td><td><span class="tag b">可控</span> 但要自己写</td><td>自己维护</td><td>低</td><td>只在你没有其他选择时用</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><b>一句话理由：</b>Dify 的 <code>metadata.retriever_resources</code> 是现成的评测输入。它同时给文档名、片段 ID、相似度和正文，等于把"检索可观测性"白送给你，你只需要做映射。</div>
+    </section>
+
+    <section id="deploy">
+      <div class="sec-head"><span class="n">02</span><h2>三种起步路径</h2></div>
+      <table class="wide">
+        <thead><tr><th>路径</th><th>适合谁</th><th>代价</th><th>注意</th></tr></thead>
+        <tbody>
+          <tr><td>云端沙箱</td><td>只想先跑通链路、机器带不动 Docker</td><td>免费额度有限，数据出域</td><td>用公开语料，别传公司文档</td></tr>
+          <tr><td>本地 docker compose</td><td>要演示、要反复跑、要控成本</td><td>约 8GB 内存 + 首次拉镜像较慢</td><td>用 <code>docker compose up -d</code>，默认 80 端口，API 在 <code>/v1</code></td></tr>
+          <tr><td>公司测试环境</td><td>已在岗、想给现有产品做评测</td><td>需要申请应用 Key</td><td>务必用独立测试应用，别打生产</td></tr>
+        </tbody>
+      </table>
+      <div class="note amber"><b>不要做的事：</b>为了"更真实"直接拿生产应用当靶子。评测会高频调用、灌测试数据、甚至触发限流。用一个专门的测试应用，是基本的职业素养。</div>
+    </section>
+
+    <section id="steps">
+      <div class="sec-head"><span class="n">03</span><h2>六步接入</h2></div>
+      <div class="flow">
+        <svg viewBox="0 0 660 104" role="img" xmlns="http://www.w3.org/2000/svg">
+<title>接入六步</title>
+<desc>建应用、灌语料、开引用、取 Key、跑 doctor、跑 smoke。</desc>
+<defs>
+<marker id="ar2" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+<path d="M2 1L8 5L2 9" fill="none" stroke="#888780" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+</marker>
+</defs>
+<rect x="8" y="30" width="92" height="52" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="54" y="50" font-family="sans-serif" font-size="11.5" font-weight="500" fill="#0C447C" text-anchor="middle">1 建 Chat 应用</text>
+<text x="54" y="67" font-family="sans-serif" font-size="10.5" fill="#185FA5" text-anchor="middle">选对话型</text>
+
+<line x1="104" y1="56" x2="120" y2="56" stroke="#888780" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+<rect x="124" y="30" width="92" height="52" rx="8" fill="#E6F1FB" stroke="#185FA5" stroke-width="0.5"/>
+<text x="170" y="50" font-family="sans-serif" font-size="11.5" font-weight="500" fill="#0C447C" text-anchor="middle">2 灌语料</text>
+<text x="170" y="67" font-family="sans-serif" font-size="10.5" fill="#185FA5" text-anchor="middle">文件名即 doc_id</text>
+
+<line x1="220" y1="56" x2="236" y2="56" stroke="#888780" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+<rect x="240" y="30" width="92" height="52" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="286" y="50" font-family="sans-serif" font-size="11.5" font-weight="500" fill="#633806" text-anchor="middle">3 开引用</text>
+<text x="286" y="67" font-family="sans-serif" font-size="10.5" fill="#854F0B" text-anchor="middle">否则没有片段</text>
+
+<line x1="336" y1="56" x2="352" y2="56" stroke="#888780" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+<rect x="356" y="30" width="92" height="52" rx="8" fill="#FAEEDA" stroke="#854F0B" stroke-width="0.5"/>
+<text x="402" y="50" font-family="sans-serif" font-size="11.5" font-weight="500" fill="#633806" text-anchor="middle">4 取 API Key</text>
+<text x="402" y="67" font-family="sans-serif" font-size="10.5" fill="#854F0B" text-anchor="middle">写进环境变量</text>
+
+<line x1="452" y1="56" x2="468" y2="56" stroke="#888780" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+<rect x="472" y="30" width="92" height="52" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="518" y="50" font-family="sans-serif" font-size="11.5" font-weight="500" fill="#085041" text-anchor="middle">5 doctor</text>
+<text x="518" y="67" font-family="sans-serif" font-size="10.5" fill="#0F6E56" text-anchor="middle">验映射</text>
+
+<line x1="568" y1="56" x2="584" y2="56" stroke="#888780" stroke-width="1.5" marker-end="url(#ar2)"/>
+
+<rect x="588" y="30" width="64" height="52" rx="8" fill="#E1F5EE" stroke="#0F6E56" stroke-width="0.5"/>
+<text x="620" y="50" font-family="sans-serif" font-size="11.5" font-weight="500" fill="#085041" text-anchor="middle">6 run</text>
+<text x="620" y="67" font-family="sans-serif" font-size="10.5" fill="#0F6E56" text-anchor="middle">出报告</text>
+</svg>
+      </div>
+      <ol class="steps">
+        <li><b>建应用</b>：Dify 里创建「聊天助手」或「Chatflow」。注意 Agent / Workflow 类型走的是别的接口，本适配器不覆盖。</li>
+        <li><b>灌语料</b>：把 <code>datasets/corpus/policy.jsonl</code> 里的 8 段内容各存成一个 txt 文件上传（文件名用 <code>policy_return_v3.txt</code> 这种，与评测集的 doc_id 一致）。</li>
+        <li><b>开启引用</b>：在应用编排里打开「引用和归属」。不开的话 <code>retriever_resources</code> 为空，检索指标直接记 0 分。</li>
+        <li><b>取 Key</b>：应用「访问 API」页面创建密钥，形如 <code>app-xxxxxxxx</code>。写进环境变量 <code>DIFY_API_KEY</code>，不要提交到仓库。</li>
+        <li><b>跑自检</b>：<code>python demo.py doctor --suite configs/suites/dify_smoke.json</code>，看 doc_id 覆盖率是否 100%。</li>
+        <li><b>跑评测</b>：<code>python demo.py run --suite configs/suites/dify_smoke.json</code>，看报告第一屏的通过率。</li>
+      </ol>
+      <pre><code># Windows PowerShell
+$env:DIFY_API_KEY = "app-xxxxxxxx"
+
+# macOS / Linux
+export DIFY_API_KEY="app-xxxxxxxx"
+
+# 自托管改 base_url，云端用 dify_cloud.json
+python demo.py doctor --suite configs/suites/dify_smoke.json
+python demo.py run    --suite configs/suites/dify_smoke.json</code></pre>
+    </section>
+
+    <section id="mapping">
+      <div class="sec-head"><span class="n">04</span><h2>字段映射：Dify 响应 → 评测模型</h2></div>
+      <p class="lead">映射全部写在配置里，代码里没有一个硬编码字段名。换厂商只改 JSON，这是"可替换"验收项的落地方式。</p>
+      <table class="wide">
+        <thead><tr><th>Dify 响应字段</th><th>映射到</th><th>用途</th><th>配置键</th></tr></thead>
+        <tbody>
+          <tr><td><code>answer</code></td><td><code>Answer.text</code></td><td>生成指标、拒答判定</td><td><code>answer_path</code></td></tr>
+          <tr><td><code>metadata.retriever_resources</code></td><td><code>Answer.contexts[]</code></td><td>检索与忠实度</td><td><code>contexts_path</code></td></tr>
+          <tr><td><code>document_name</code></td><td><code>Passage.doc_id</code></td><td>与评测集 golden 对齐</td><td><code>doc_id_field</code></td></tr>
+          <tr><td><code>segment_id</code></td><td><code>Passage.chunk_id</code></td><td>精确到片段算 hit / MRR</td><td><code>chunk_id_field</code></td></tr>
+          <tr><td><code>content</code></td><td><code>Passage.text</code></td><td>忠实度判定依据</td><td><code>text_field</code></td></tr>
+          <tr><td><code>score</code></td><td><code>Passage.score</code></td><td>人工看召回质量</td><td><code>score_field</code></td></tr>
+        </tbody>
+      </table>
+      <div class="note warn"><b>最关键的取舍：用 document_name 而不是 document_id。</b><br>
+      <code>document_id</code> 是 UUID，每次重建知识库都会变，评测集没法写死；<code>document_name</code> 是文件名，稳定且可读。配置里 <code>doc_id_strip_suffix: true</code> 会把 <code>.txt</code> 去掉，从而与 <code>policy_return_v3</code> 对上。</div>
+      <pre><code>"mapping": {
+  "answer_path": "answer",
+  "contexts_path": "metadata.retriever_resources",
+  "doc_id_field": "document_name",
+  "chunk_id_field": "segment_id",
+  "text_field": "content",
+  "score_field": "score",
+  "doc_id_strip_suffix": true
+}</code></pre>
+    </section>
+
+    <section id="doctor">
+      <div class="sec-head"><span class="n">05</span><h2>doctor 报出的三类典型故障</h2></div>
+      <p class="lead">接真实系统时 80% 的时间耗在这三件事上。工具把它们变成三条可直接执行的提示，而不是让你盯着响应体找差异。</p>
+      <table class="wide">
+        <thead><tr><th>doctor 输出</th><th>真实原因</th><th>改哪里</th></tr></thead>
+        <tbody>
+          <tr><td>鉴权失败（401）</td><td>Key 不属于该应用 / 已失效 / 少了 Bearer 前缀</td><td>重新创建应用密钥，确认 <code>api_key_env</code> 指向的变量有值</td></tr>
+          <tr><td>所有探测用例都没有返回引用片段</td><td>应用没开「引用和归属」，或 <code>contexts_path</code> 写错</td><td>编排页打开引用；确认路径是 <code>metadata.retriever_resources</code></td></tr>
+          <tr><td>doc_id 覆盖率 0%，且列出两串 ID 对照</td><td>用 UUID 去对文件名，或后缀没去掉</td><td><code>doc_id_field</code> 改 <code>document_name</code>，<code>doc_id_strip_suffix</code> 设 true</td></tr>
+        </tbody>
+      </table>
+      <pre><code>$ python demo.py doctor --suite configs/suites/dify_smoke.json --limit 3
+
+接入自检 · dify-local v1.x
+----------------------------------------------------------------
+健康检查：通过 · 应用参数接口可用
+
+用例                              引用片段    doc_id 命中      耗时
+core_return_window                 3          1/1       812ms
+    答案：可以。自签收之日起 7 天内……
+
+doc_id 覆盖率：100%
+----------------------------------------------------------------
+结论：可以开跑</code></pre>
+      <div class="note ok"><b>为什么值得单独做个命令：</b>面试时讲"我为什么先写自检再跑评测"，比讲"我会调 API"有分量得多——它说明你知道真实接入的成本在哪里。</div>
+    </section>
+
+    <section id="traps">
+      <div class="sec-head"><span class="n">06</span><h2>六个常见坑</h2></div>
+      <table class="wide">
+        <thead><tr><th>坑</th><th>表现</th><th>处理</th></tr></thead>
+        <tbody>
+          <tr><td>多轮上下文污染</td><td>同一 conversation 里，后一条问题带上前一条的答案，指标虚高</td><td>适配器默认不传 <code>conversation_id</code>，且每条用例独立 <code>user</code>，已内置</td></tr>
+          <tr><td>流式响应</td><td><code>response_mode=streaming</code> 返回 SSE，解析不到 JSON</td><td>评测用 blocking；流式留给"首 token 延迟"专项测试</td></tr>
+          <tr><td>限流</td><td>并发 8 时大量 429，被算成采集失败</td><td><code>concurrency</code> 设 1-2，错误分类里 429 标为可重试</td></tr>
+          <tr><td>引用为空</td><td>检索指标全 0，误判"检索差"</td><td>先跑 doctor 确认是否开了引用</td></tr>
+          <tr><td>知识库重建</td><td>segment_id 变了，历史基线不可比</td><td>报告里记录 target 版本；重建后重跑基线，不做跨版本对比</td></tr>
+          <tr><td>答案改写</td><td>模型润色导致 answer_match 偏低，但语义是对的</td><td>v0 的 bigram 近似只作冒烟；语义判定交给 v1 的 judge</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section id="accept">
+      <div class="sec-head"><span class="n">07</span><h2>接入验收清单</h2></div>
+      <table class="wide">
+        <thead><tr><th>验收项</th><th>命令 / 观察点</th><th>不达标说明</th></tr></thead>
+        <tbody>
+          <tr><td>健康检查通过</td><td>doctor 第一行显示"通过"</td><td>地址或 Key 有问题</td></tr>
+          <tr><td>引用片段非空</td><td>每条探测用例的"引用片段"列大于 0</td><td>引用未开启或路径错</td></tr>
+          <tr><td>doc_id 覆盖率 100%</td><td>doctor 最后一行</td><td>映射字段错，指标全部无效</td></tr>
+          <tr><td>冒烟可判定</td><td>run 退出码 0 或 1，不是 2</td><td>配置或环境错误</td></tr>
+          <tr><td>报告可读</td><td><code>out/report.html</code> 第一屏能看懂结论</td><td>指标口径或阈值有问题</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><b>验收的意义：</b>这五项全过，你才有资格说"我测了一个 RAG 系统"。任何一项不过，跑出来的数字都不能写进简历。</div>
+    </section>
+
+    <section id="criteria">
+      <div class="sec-head"><span class="n">08</span><h2>阶段一选靶子的三条标准</h2></div>
+      <p class="lead">阶段一练的是工程能力，不是业务复杂度。所以靶子的标准很具体：</p>
+      <ol class="steps">
+        <li><b>有公开且稳定的 API 文档</b>，能直接用 curl 打通。否则你会把时间耗在猜接口上。</li>
+        <li><b>能造脏数据</b>：允许你提交非法字段、超长字符串、重复数据，并能清理。只读接口练不出数据生命周期管理。</li>
+        <li><b>有真实的失败分支</b>：401、404、422、429 至少覆盖三种。全 200 的靶子练不出错误断言。</li>
+      </ol>
+      <div class="note amber"><b>不要选：</b>需要企业认证的、接口随时变的、文档只有截图的、注册要手机验证码的。这些会把学习时间消耗在环境上。</div>
+    </section>
+
+    <section id="apis">
+      <div class="sec-head"><span class="n">09</span><h2>公开 API 靶场</h2></div>
+      <table class="wide">
+        <thead><tr><th>靶子</th><th>地址</th><th>练什么</th><th>周次</th><th>坑</th></tr></thead>
+        <tbody>
+          <tr><td>httpbin</td><td>httpbin.org</td><td>请求构造、状态码矩阵、header / cookie 断言</td><td><span class="tag b">W1</span></td><td>只读，练不了数据生命周期</td></tr>
+          <tr><td>JSONPlaceholder</td><td>jsonplaceholder.typicode.com</td><td>资源嵌套、过滤参数、POST 假成功</td><td><span class="tag b">W1</span></td><td>写操作不会真落库，别断言"数据已创建"</td></tr>
+          <tr><td>Restful-booker</td><td>restful-booker.herokuapp.com</td><td>token 鉴权、CRUD、yield 清理、幂等</td><td><span class="tag g">W2</span></td><td>Heroku 冷启动慢，健康检查要放宽超时</td></tr>
+          <tr><td>DummyJSON</td><td>dummyjson.com</td><td>分页、排序、字段裁剪、登录换 token</td><td><span class="tag g">W3</span></td><td>支持 <code>?delay=</code>，正好用来练超时与重试</td></tr>
+          <tr><td>Practice Software Testing</td><td>practicesoftwaretesting.com</td><td>API + UI 全栈、购物车流程、CI 门禁</td><td><span class="tag a">W4</span></td><td>注册账号会限流，用固定测试账号</td></tr>
+          <tr><td>Swagger Petstore</td><td>petstore.swagger.io</td><td>契约测试、schema 校验</td><td><span class="tag a">W4</span></td><td>接口是演示性质，行为不稳定</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><b>reqres.in 现在需要免费 API Key</b>，注册后才能用。如果嫌麻烦，直接用 DummyJSON 替代，能力覆盖更全。</div>
+      <p class="body">W4 的 Practice Software Testing 值得单独说：它是少数同时提供 <b>API 文档 + 可注册前端 + Docker 本地部署</b> 的开源靶场，自带一批已知缺陷。你可以完整走一遍"写用例 → 发现缺陷 → 写缺陷报告"，这正是阶段一要的产出物。</p>
+    </section>
+
+    <section id="repos">
+      <div class="sec-head"><span class="n">10</span><h2>真实开源仓库练手</h2></div>
+      <p class="lead">公开靶场解决"能不能写"，真实仓库解决"别人认不认"。这类练手的产出是可验证的第三方证据，比自建 demo 有说服力得多。</p>
+      <table class="wide">
+        <thead><tr><th>仓库</th><th>可贡献什么</th><th>难度</th><th>为什么适合</th></tr></thead>
+        <tbody>
+          <tr><td>open-webui</td><td>补 pytest 用例、修 e2e flaky、补 CI 步骤</td><td><span class="tag g">低</span></td><td>测试目录结构清晰，维护者响应快</td></tr>
+          <tr><td>dify</td><td>补 API 异常分支用例、补测试文档</td><td><span class="tag a">中</span></td><td>与你的主靶子同源，理解成本低</td></tr>
+          <tr><td>ragflow</td><td>补解析与检索的单测、复现文档</td><td><span class="tag a">中</span></td><td>测试覆盖相对薄弱，机会多</td></tr>
+          <tr><td>langflow</td><td>补后端组件单测、修 CI 配置</td><td><span class="tag a">中</span></td><td>Python 技术栈一致</td></tr>
+          <tr><td>anythingllm</td><td>补接口契约测试、文档示例可执行化</td><td><span class="tag g">低</span></td><td>Node 栈，适合练跨栈阅读</td></tr>
+        </tbody>
+      </table>
+      <div class="note"><b>判断一个仓库值不值得投入：</b>近三个月有合并记录、CI 是绿的、有 CONTRIBUTING、维护者会回 PR 评论。四条缺两条就换一个，别在死仓库上耗时间。</div>
+    </section>
+
+    <section id="pr">
+      <div class="sec-head"><span class="n">11</span><h2>第一个 PR 怎么提</h2></div>
+      <p class="lead">不要一上来改核心逻辑。测试类 PR 的接受度远高于功能改动，因为风险低、收益明确。</p>
+      <table class="wide">
+        <thead><tr><th>路径</th><th>具体做法</th><th>接受概率</th></tr></thead>
+        <tbody>
+          <tr><td>补覆盖缺口</td><td>跑 pytest --cov，找 0 覆盖的关键函数，补 3-5 条用例</td><td><span class="tag g">高</span></td></tr>
+          <tr><td>修 flaky</td><td>找 CI 里反复红又反复绿的用例，定位时序/共享状态问题</td><td><span class="tag g">高</span></td></tr>
+          <tr><td>为已修 bug 补回归测试</td><td>翻最近修复的 issue，补一条能复现原问题的用例</td><td><span class="tag g">最高</span></td></tr>
+          <tr><td>文档示例可执行化</td><td>把 README 里的 curl 变成可跑的测试脚本</td><td><span class="tag a">中</span></td></tr>
+          <tr><td>改核心逻辑</td><td>除非你非常确定，否则第一阶段别碰</td><td><span class="tag r">低</span></td></tr>
+        </tbody>
+      </table>
+      <h3>PR 描述模板（直接套）</h3>
+      <pre><code>## 背景
+该函数在 xxx 分支下没有测试覆盖，改动时容易回归。
+
+## 改动
+新增 4 条单元测试，覆盖：
+- 空输入
+- 超长输入（10000 字符）
+- 数据库异常时的回滚
+- 并发调用下的幂等性
+
+## 验证
+本地 `pytest tests/xxx -q` 全绿；覆盖率 42% -> 67%。
+
+## 说明
+只加测试，不改实现。若需要调整测试目录结构请告知。</code></pre>
+      <div class="note amber"><b>三条纪律：</b>一个 PR 只做一件事；改动控制在 200 行以内；先开 issue 问一句"要不要补这个测试"，再动手。后者能省掉一半白工。</div>
+    </section>
+
+    <section id="weekly">
+      <div class="sec-head"><span class="n">12</span><h2>四周排布</h2></div>
+      <table class="wide">
+        <thead><tr><th>周</th><th>靶子</th><th>当周必须产出</th><th>与计划表的对应</th></tr></thead>
+        <tbody>
+          <tr><td>W1</td><td>httpbin + JSONPlaceholder</td><td>src-layout 仓库 + 10 条用例 + fixture 分层</td><td>环境与 pytest 工程化</td></tr>
+          <tr><td>W2</td><td>Restful-booker</td><td>20 条 CRUD/异常用例 + yield 清理 + schema 校验</td><td>接口测试硬功</td></tr>
+          <tr><td>W3</td><td>DummyJSON</td><td>参数化 + 并行 &lt; 2 分钟 + flaky 归因清单</td><td>参数化与不稳定用例</td></tr>
+          <tr><td>W4</td><td>Practice Software Testing</td><td>GitHub Actions 三档流水线 + 1 份缺陷报告</td><td>CI 门禁与报告</td></tr>
+        </tbody>
+      </table>
+      <div class="note ok"><b>衔接点：</b>W4 的仓库直接作为 rag-eval 的工程底座——同一套 lint、CI、报告习惯延续下去，第 9 周做评测平台时不用重新搭脚手架。</div>
+      <div class="printfoot">Dify 适配接入手册 &amp; 阶段一开源练手清单 · 配套 rag-eval v0</div>
+    </section>
+  </main>
+</div>
+</body>
+</html>

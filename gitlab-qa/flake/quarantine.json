@@ -1,0 +1,4 @@
+{
+  "_readme": "隔离区不是垃圾桶。每条都要写清 reason 与 due；到期后条目自动失效，用例回到门禁里继续跑。用 python tools/flake.py --quarantine-add <nodeid> --reason ... --due YYYY-MM-DD 添加。",
+  "entries": []
+}

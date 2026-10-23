@@ -1,0 +1,10 @@
+{
+  "kind": "mock",
+  "name": "mock-degraded",
+  "version": "0.1.1",
+  "corpus": "datasets/corpus/policy.jsonl",
+  "degradation": {
+    "drop_expected_rate": 0.25,
+    "hallucinate_rate": 0.34
+  }
+}

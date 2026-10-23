@@ -1,0 +1,75 @@
+# ===================================================================
+# 顶层 .gitignore
+# 原则：密钥与运行结果一律不入库。各子目录还有自己的 .gitignore，
+# 这里是兜底——漏一层就把 Token 推上去，代价太大。
+# ===================================================================
+
+# ---- 密钥与凭据（最高优先级）----
+.env
+.env.*
+!.env.example
+*.token
+*.pat
+secrets.*
+credentials.*
+*credential*.json
+
+# ---- 运行产物 ----
+allure-results/
+allure-report/
+allure-history/
+artifacts/
+screenshots/
+traces/
+out/
+.pytest_cache/
+.cache/
+reports/
+logs/
+*.log
+
+# ---- 早先验证"批量删除守卫"留下的空文件探针目录 ----
+_delguard_probe/
+_delprobe/
+
+# ---- 会话 / 本地工作数据 ----
+.workbuddy/
+
+# ---- Python ----
+__pycache__/
+*.py[cod]
+*.egg-info/
+*.egg
+build/
+dist/
+.venv/
+venv/
+env/
+.mypy_cache/
+.ruff_cache/
+htmlcov/
+.coverage
+coverage.xml
+
+# ---- Node ----
+node_modules/
+.npm/
+pnpm-lock.yaml.bak
+
+# ---- 大体积二进制（按需单独放行）----
+*.zip
+*.tar
+*.tar.gz
+*.7z
+*.iso
+*.mp4
+*.avi
+
+# ---- 编辑器与系统 ----
+.idea/
+.vscode/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+desktop.ini
