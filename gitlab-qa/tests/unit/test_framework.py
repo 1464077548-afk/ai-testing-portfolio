@@ -15,11 +15,14 @@ from gqa.settings import Settings
 
 
 class TestPercentile:
+    '''
+    测试百分位数计算是否正确。
+    '''
     def test_p95_of_sequential_data(self):
         r = PerfResult(name="t")
         r.samples = [Sample(ok=True, latency_ms=i) for i in range(1, 101)]
-        assert r.p50 == pytest.approx(50.5, abs=0.6)
-        assert r.p95 == pytest.approx(95.05, abs=0.6)
+        assert r.p50 == pytest.approx(50.5, abs=0.6)   #pytest.approx 是 pytest 里专门用来做近似相等断言的工具，主要解决浮点数精度问题。
+        assert r.p95 == pytest.approx(95.05, abs=0.6)   #abs:绝对误差；rel:相对误差;nan_ok:是否允许NaN 等于自身，默认 False
         assert r.p99 == pytest.approx(99.01, abs=0.6)
 
     def test_empty_result_does_not_crash(self):
@@ -56,13 +59,16 @@ class TestPercentile:
 
 
 class TestContracts:
+    '''
+    测试契约校验是否正确。
+    '''
     def test_valid_project_passes(self):
         instance = {
             "id": 1, "name": "demo", "path": "demo",
             "visibility": "private", "created_at": "2026-01-01T00:00:00.000Z",
         }
         assert contracts.collect_errors(instance, contracts.PROJECT) == []
-
+    #类型漂移
     def test_string_id_is_caught(self):
         """id 从 int 变 str 必须被检出——这是最致命的一类漂移。"""
         instance = {"id": "1", "name": "demo", "path": "demo"}
@@ -73,13 +79,22 @@ class TestContracts:
         instance = {"id": 1, "name": "demo", "path": "demo", "visibility": "secret"}
         errors = contracts.collect_errors(instance, contracts.PROJECT)
         assert errors and any("visibility" in e for e in errors)
-
+    #缺少必填字段应该报错
     def test_missing_required_is_caught(self):
         errors = contracts.collect_errors({"id": 1}, contracts.PROJECT)
         assert any("name" in e for e in errors)
 
+    # 新增字段不应该报错（开放契约）
+    def test_extra_field_allowed(self):
+        instance = {"id": 1, "name": "demo", "path": "demo", "extra": "ok"}
+        errors = contracts.collect_errors(instance, contracts.PROJECT)
+        assert not errors
+
 
 class TestSettings:
+    '''
+    测试 Settings 类的描述方法。
+    '''
     def test_describe_hides_token(self, monkeypatch):
         s = Settings(
             base_url="http://localhost:8929", token="glpat-xxxxxxxxxxxxxxxxxxxx",
@@ -90,7 +105,7 @@ class TestSettings:
         text = s.describe()
         assert "abcdefghijklmnop" not in text, "描述信息里不能出现完整 token"
         assert "glpat" in text
-
+    #占位符 token 不会被误判为有效凭证：token 字段故意填入 <your-token> 这种典型的占位符格式（类似 .env.example 里常见的写法）。
     def test_has_token_detects_placeholder(self):
         s = Settings(base_url="http://x", token="<your-token>", env="local",
                      ssh_port=2222, admin_user="root", admin_password="",

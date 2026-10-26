@@ -80,11 +80,18 @@ ERROR = {
 
 def collect_errors(instance: dict, schema: dict) -> list[str]:
     """一次列出所有不合约的字段，而不是只报第一个。"""
-    validator = jsonschema.Draft202012Validator(schema)
+    validator = jsonschema.Draft202012Validator(schema)    #使用 jsonschema 库，按 Draft 2020-12 规范创建校验器。这是 JSON Schema 最新的标准版本
     return [
-        f"{'/'.join(str(p) for p in err.path) or '<root>'}: {err.message}"
+        f"{'/'.join(str(p) for p in err.path) or '<root>'}: {err.message}"  #格式化每条错误：err.path 是一个类似 ['user', 'age'] 的路径，用 / 拼接成 "user/age"
+                                    #如果是根级别错误（path 为空），用 '<root>' 代替；err.message 是库自动生成的错误描述，如 "5 is not of type 'string'"
         for err in sorted(validator.iter_errors(instance), key=lambda e: list(e.path))
     ]
+    '''
+        validator.iter_errors(instance):核心方法：返回一个生成器，产出所有校验错误对象（ValidationError）。
+        与 validator.validate() 不同，iter_errors 不会在第一个错误时抛出异常，而是收集全部错误。
+
+        sorted(..., key=lambda e: list(e.path)):按错误路径排序，保证输出顺序稳定、可读。例如 a.b.c 会排在 a.b.d 前面。
+    '''
 
 
 def assert_matches(instance: dict, schema: dict) -> None:

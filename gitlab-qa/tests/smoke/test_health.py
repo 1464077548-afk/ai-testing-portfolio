@@ -18,7 +18,9 @@ from gqa import contracts
 
 pytestmark = [pytest.mark.smoke, pytest.mark.api]
 
-
+#@allure.epic / feature / story / severity 放在测试函数或测试类上，用来给报告做分层分类
+#allure.attach(...) 通常写在某个 with allure.step(...) 里面，用来挂响应体、日志、JSON、截图等。
+# attachment_type 可以选 TEXT、JSON、HTML、PNG 等，默认 TEXT
 @allure.epic("GitLab 可用性")
 @allure.feature("系统健康")
 @allure.story("服务响应正常")
