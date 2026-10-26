@@ -107,20 +107,7 @@ $Image      = 'gitlab/gitlab-ce:latest'
 # 与 docker-compose.yml 的 GITLAB_ROOT_PASSWORD 必须一致。
 # 不能用 GitlabQA@2026 这类值：GitLab 19 的密码策略会拒绝"常见词组合"，
 # seed 失败是静默的 —— 登录页照常打开，但库里没有 root 用户。
-# root 密码不硬编码在脚本里——它会被提交到版本库。
-# 从环境变量读；读不到就明确失败，绝不静默用空值往下跑（空密码 seed 会静默失败）。
-$RootPwd    = $env:GITLAB_ROOT_PASSWORD
-if ([string]::IsNullOrWhiteSpace($RootPwd)) {
-    Write-Host ''
-    Write-Host '缺少 GITLAB_ROOT_PASSWORD。' -ForegroundColor Red
-    Write-Host '  先设置再运行，例如：' -ForegroundColor Yellow
-    Write-Host '  $env:GITLAB_ROOT_PASSWORD = ''你的强密码''   # 当前会话有效' -ForegroundColor Gray
-    Write-Host '  或写入 gitlab-qa\.env 后执行：' -ForegroundColor Yellow
-    Write-Host '  $env:GITLAB_ROOT_PASSWORD = (Get-Content gitlab-qa\.env | Select-String GITLAB_ROOT_PASSWORD).ToString().Split(''='')[1]' -ForegroundColor Gray
-    Write-Host ''
-    Write-Host '要求：不含 gitlab / admin / password 等常见词，否则 GitLab 19 密码策略会静默拒绝 seed。' -ForegroundColor Yellow
-    exit 1
-}
+# $RootPwd 在下面 $EnvFile 定义之后才解析——要先知道 .env 在哪，才能从里面回读。
 
 # PAT 明文默认随机生成。硬编码默认值等于把凭据写进版本库，
 # 而且所有人 clone 下来拿到同一个 token —— 留空即随机是更安全的默认。
@@ -132,6 +119,71 @@ if ([string]::IsNullOrWhiteSpace($PatValue)) {
 $BaseUrl    = "http://localhost:$HostPort"
 $QaDir      = Join-Path (Split-Path -Parent $Root) 'gitlab-qa' #- `$QaDir`：测试工程目录，和部署脚本目录同级
 $EnvFile    = Join-Path $QaDir '.env'
+
+# ==========================================================================
+# root 密码解析
+#
+# 不硬编码在脚本里——脚本要进版本库，写死等于把凭据公开。
+# 按优先级取：环境变量 → gitlab-qa\.env → 随机生成（首装）。
+#
+# 第二条回退是必须的：只认环境变量的话，重跑一次脚本就得先去翻 .env
+# 并把密码贴回命令行（还会留在 shell 历史里）。而 .env 里存的就是上次
+# 部署用的密码，复用它才不会把已存在实例的 root 密码悄悄改掉。
+#
+# 空值绝不往下走：空密码 seed 是静默失败——登录页照常打开，库里却没有 root。
+# ==========================================================================
+$RootPwd   = ''
+$pwdSource = ''
+
+if (-not [string]::IsNullOrWhiteSpace($env:GITLAB_ROOT_PASSWORD)) {
+    $RootPwd   = $env:GITLAB_ROOT_PASSWORD
+    $pwdSource = '环境变量 GITLAB_ROOT_PASSWORD'
+}
+
+if ([string]::IsNullOrWhiteSpace($RootPwd) -and (Test-Path $EnvFile)) {
+    # 逐行匹配而不是 Select-String + Split：值里可能含 = 或空格，
+    # Split('=')[1] 会把含 = 的密码截断，且不去引号。
+    foreach ($line in Get-Content -LiteralPath $EnvFile -Encoding UTF8) {
+        if ($line -match '^\s*GITLAB_ROOT_PASSWORD\s*=(.*)$') {
+            $v = $Matches[1].Trim()
+            if ($v.Length -ge 2) {
+                if (($v.StartsWith('"') -and $v.EndsWith('"')) -or
+                    ($v.StartsWith("'") -and $v.EndsWith("'"))) {
+                    $v = $v.Substring(1, $v.Length - 2)
+                }
+            }
+            if (-not [string]::IsNullOrWhiteSpace($v)) {
+                $RootPwd   = $v
+                $pwdSource = 'gitlab-qa\.env（复用上次部署的值）'
+            }
+            break
+        }
+    }
+}
+
+if ([string]::IsNullOrWhiteSpace($RootPwd)) {
+    if ($SmokeOnly) {
+        # 只验收不部署，全程不碰容器，也就用不到 root 密码。
+        # 这里报错会把"改完用例快速回归"这条最常用路径堵死。
+        $pwdSource = '未解析（-SmokeOnly 不需要）'
+    }
+    else {
+        # 首装：随机生成。GitLab 19 会静默拒绝含常见词（gitlab/admin/password/
+        # root/user 等）的密码，让用户自己想一个很容易撞上；四字符集随机串
+        # 不在字典里，也不会撞词。
+        $sets  = @('abcdefghijkmnopqrstuvwxyz', 'ABCDEFGHJKLMNPQRSTUVWXYZ',
+                   '0123456789', '!@#%^&*-_=+')
+        $chars = @()
+        foreach ($s in $sets) { $chars += $s[(Get-Random -Maximum $s.Length)] }
+        for ($i = 0; $i -lt 14; $i++) {
+            $pool  = $sets[(Get-Random -Maximum $sets.Length)]
+            $chars += $pool[(Get-Random -Maximum $pool.Length)]
+        }
+        $RootPwd   = (($chars | Sort-Object { Get-Random }) -join '')
+        $pwdSource = '随机生成（首次部署）'
+    }
+}
+
 $LogDir     = Join-Path $Root 'logs'
 $StateFile  = Join-Path $Root '.deploy-state.json'
 $AllowedSuites = @('unit', 'smoke', 'api', 'contract', 'ui', 'e2e', 'perf', 'regression', 'all')
@@ -466,6 +518,9 @@ try { Start-Transcript -Path $logPath -Force | Out-Null } catch { $logPath = '' 
 Write-Host ''
 Write-Host '  GitLab CE 一键部署 · 部署 + 就绪 + PAT + .env + 验收' -ForegroundColor White
 Write-Host ('  目标地址 {0}   容器 {1}   内存上限 {2}' -f $BaseUrl, $Container, $MemoryLimit) -ForegroundColor DarkGray
+if (-not $SmokeOnly) {
+    Write-Host ('  root 密码来源 {0}' -f $pwdSource) -ForegroundColor DarkGray
+}
 
 try {
 
@@ -629,6 +684,15 @@ if ($composeProbe.Code -ne 0) {
 $env:GITLAB_EXTERNAL_URL = $BaseUrl
 $env:GITLAB_HOST_PORT    = "$HostPort"
 $env:GITLAB_MEM_LIMIT    = $MemoryLimit
+
+# root 密码也必须在这里显式导出：docker-compose.yml 用的是
+# ${GITLAB_ROOT_PASSWORD:?...} 必填占位，而 compose 只认当前进程的环境变量
+# 或 gitlab-ce/.env —— 它不会去读 gitlab-qa/.env。
+# 密码改从 .env 回读后，用户可能压根没设环境变量，不导出这一行
+# compose 就会在 config/up 阶段报 "environment variable is required"，
+# 而且报错长得很像 compose 文件写错了，很难联想到是密码没传。
+# 只在当前会话生效，脚本结束即消失。
+$env:GITLAB_ROOT_PASSWORD = $RootPwd
 
 $composeFile = Join-Path $Root "docker-compose.yml"
 $cfg = Invoke-Capture -Exe $Script:ComposeExe `
@@ -1052,6 +1116,26 @@ if ($missing.Count -gt 0) {
     Stop-Deploy ('写入的 .env 缺少键：' + ($missing -join ', '))
 }
 Write-Ok ("已写入 {0}（无 BOM，{1} 个配置项）" -f $EnvFile, $required.Count)
+
+# 随机生成的密码必须显式打出来：它是 root 的唯一凭据，
+# 只写进 .env 而不告知，用户第一次登录时会以为密码还是自己设的那个。
+if ($pwdSource -eq '随机生成（首次部署）') {
+    Write-Host ''
+    Write-Host '  root 密码由脚本随机生成（已写入 .env），请自行保存：' -ForegroundColor Yellow
+    Write-Host ('    {0}' -f $RootPwd) -ForegroundColor White
+    Write-Host ('  登录：http://localhost:{0}   账号 root' -f $HostPort) -ForegroundColor Gray
+
+    # GITLAB_ROOT_PASSWORD 只在首次 seed 时生效。实例一旦建好，后续启动
+    # 不会改写已有 root 的密码——所以"随机生成"只有在数据卷是空的时候才真的成为
+    # 实例密码。下面这句防的是：.env 丢了但容器还在，结果 .env 里写着一个
+    # 实例根本不认识的密码，UI 登录用例全红，而报错看起来像框架坏了。
+    if ($null -ne $existing) {
+        Write-Host ''
+        Write-Host '  [!!] 已存在同名实例，它现在的 root 密码不会被本脚本改写。' -ForegroundColor Yellow
+        Write-Host '       .env 里这个新密码对它无效。要让它生效请加 -Reset（会清空数据卷）。' -ForegroundColor DarkGray
+    }
+    Write-Host ''
+}
 
 }   # end: -not $SmokeOnly
 
