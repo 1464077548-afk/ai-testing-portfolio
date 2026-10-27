@@ -19,6 +19,7 @@
 from __future__ import annotations
 
 import argparse
+import base64
 import json
 import os
 import random
@@ -50,6 +51,29 @@ class State:
         self.issues: dict[tuple[int, int], dict] = {}
         self.groups: dict[int, dict] = {}
         self.next_group_id = 500
+
+        # 以下是「仓库 / 协作对象」这一层。它们都挂在某个项目下，
+        # 项目被删时必须跟着一起消失——真实 GitLab 就是这样，
+        # 替身漏了这一条，删除用例就会在「删完还能查到标签」上假绿。
+        self.branches: dict[int, dict[str, dict]] = {}   # pid -> {分支名: 分支}
+        self.files: dict[tuple[int, str, str], str] = {}  # (pid, 分支, 路径) -> 内容
+        self.commits: dict[int, list[dict]] = {}          # pid -> 提交列表（新→旧）
+        self.tags: dict[tuple[int, str], dict] = {}       # (pid, 标签名) -> 标签
+        self.labels: dict[tuple[int, int], dict] = {}     # (pid, 标签 id) -> 标签
+        self.next_label_id = 900
+        self.milestones: dict[tuple[int, int], dict] = {}  # (pid, 里程碑 id)
+        self.next_milestone_id = 700
+        self.notes: dict[tuple[int, int, int], dict] = {}  # (pid, 议题 iid, 评论 id)
+        self.next_note_id = 300
+        self.mrs: dict[tuple[int, int], dict] = {}         # (pid, MR iid)
+        self.next_mr_iid: dict[int, int] = {}
+        self.members: dict[tuple[int, int], dict] = {}     # (pid, user_id)
+        self.group_members: dict[tuple[int, int], dict] = {}  # (gid, user_id)
+        self.snippets: dict[int, dict] = {}
+        self.next_snippet_id = 600
+        self.users_extra: dict[int, dict] = {}             # 运行时创建的用户
+        self.next_user_id = 100
+        self._commit_seq = 0
         # 实例级设置。默认关闭自助注册，和「内网实例应有的样子」保持一致：
         # 靶机替身如果默认开着，安全用例会在靶机上假红，掩盖真实配置漂移。
         self.application_settings: dict = {
@@ -93,7 +117,36 @@ class State:
         }
         self.projects[pid] = proj
         self.next_issue_iid[pid] = 1
+        # 初始化仓库：默认分支 + README + 一条初始提交。
+        # 没有初始提交时很多仓库接口会 404（真实 GitLab 的空仓库就是这样），
+        # 但「创建时带 README」的项目不该是空仓库，替身必须体现这个差别。
+        self.branches[pid] = {
+            "main": {"name": "main", "merged": False, "protected": True,
+                     "default": True, "commit": {"id": "0" * 40, "short_id": "0000000"}},
+        }
+        self.files[(pid, "main", "README.md")] = f"# {name}\n"
+        self.commits[pid] = [self._make_commit(f"Initial commit: {name}")]
         return proj
+
+    # ------------------------------------------------------------ 提交
+    def _make_commit(self, message: str, pid: int | None = None) -> dict:
+        self._commit_seq += 1
+        sha = f"{self._commit_seq:040x}"
+        commit = {
+            "id": sha,
+            "short_id": sha[:8],
+            "title": message,
+            "message": message,
+            "author_name": "QA Bot",
+            "author_email": "qa-bot@example.com",
+            "created_at": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+            "web_url": f"http://localhost/-/commit/{sha}",
+        }
+        if pid is not None:
+            self.commits.setdefault(pid, []).insert(0, commit)
+            for br in self.branches.get(pid, {}).values():
+                br["commit"] = {"id": sha, "short_id": sha[:8]}
+        return commit
 
     def create_project(self, payload: dict) -> dict:
         name = payload.get("name") or "unnamed"
@@ -112,6 +165,25 @@ class State:
             for (p, _i) in [k for k in self.issues if k[0] == pid]:
                 del self.issues[(p, _i)]
             self.next_issue_iid.pop(pid, None)
+            # 挂在项目下的东西一并清掉。真实 GitLab 删项目不会留下
+            # 「还能查到的标签/里程碑」，替身留下就会出现删完还能读到的假绿
+            self.branches.pop(pid, None)
+            self.commits.pop(pid, None)
+            self.next_mr_iid.pop(pid, None)
+            for key in [k for k in self.files if k[0] == pid]:
+                del self.files[key]
+            for key in [k for k in self.tags if k[0] == pid]:
+                del self.tags[key]
+            for key in [k for k in self.labels if k[0] == pid]:
+                del self.labels[key]
+            for key in [k for k in self.milestones if k[0] == pid]:
+                del self.milestones[key]
+            for key in [k for k in self.notes if k[0] == pid]:
+                del self.notes[key]
+            for key in [k for k in self.mrs if k[0] == pid]:
+                del self.mrs[key]
+            for key in [k for k in self.members if k[0] == pid]:
+                del self.members[key]
             return True
 
     def create_issue(self, pid: int, payload: dict) -> dict:
@@ -131,6 +203,7 @@ class State:
                 "closed_at": None,
                 "labels": payload.get("labels") or [],
                 "weight": payload.get("weight"),
+                "milestone_id": payload.get("milestone_id"),
                 "author": {"id": 1, "username": "qa-bot", "name": "QA Bot",
                            "state": "active"},
                 "assignees": [],
@@ -161,11 +234,247 @@ class State:
                 "visibility": payload.get("visibility") or "private",
                 "web_url": f"http://localhost/groups/{gid}",
                 "full_path": payload.get("path") or name.lower(),
-                "parent_id": None,
+                # 子群组靠 parent_id 组织。写死 None 的话子群组列表永远是空的，
+                # 而且看起来像「接口没返回数据」而不是「替身没实现」
+                "parent_id": payload.get("parent_id"),
                 "created_at": "2026-09-01T08:00:00.000Z",
             }
             self.groups[gid] = grp
             return grp
+
+    # ------------------------------------------------------------ 用户
+    def known_user_ids(self) -> set[int]:
+        return {1} | set(self.users_extra)
+
+    def user_brief(self, uid: int) -> dict | None:
+        if uid == 1:
+            return {"id": 1, "username": "qa-bot", "name": "QA Bot", "state": "active"}
+        u = self.users_extra.get(uid)
+        return {"id": uid, "username": u["username"], "name": u["name"],
+                "state": u.get("state", "active")} if u else None
+
+    def create_user(self, payload: dict) -> dict:
+        with self.lock:
+            uid = self.next_user_id
+            self.next_user_id += 1
+            user = {
+                "id": uid,
+                "username": payload.get("username") or f"user{uid}",
+                "name": payload.get("name") or payload.get("username") or f"User {uid}",
+                "email": payload.get("email") or f"user{uid}@example.com",
+                "state": "active",
+                "created_at": "2026-09-01T08:00:00.000Z",
+                "is_admin": False,
+                "web_url": f"http://localhost/{payload.get('username') or uid}",
+            }
+            self.users_extra[uid] = user
+            return user
+
+    # ------------------------------------------------------------ 标签
+    def create_label(self, pid: int, payload: dict) -> dict | None:
+        """返回 None 表示重名冲突（真实 GitLab 是 409）。"""
+        name = (payload.get("name") or "").strip()
+        with self.lock:
+            if any(lb["name"] == name for (p, _), lb in self.labels.items() if p == pid):
+                return None
+            lid = self.next_label_id
+            self.next_label_id += 1
+            label = {
+                "id": lid,
+                "name": name,
+                "color": payload.get("color") or "#0033cc",
+                "description": payload.get("description") or "",
+                "open_issues_count": 0,
+                "closed_issues_count": 0,
+                "open_merge_requests_count": 0,
+                "subscribed": False,
+                "priority": payload.get("priority"),
+            }
+            self.labels[(pid, lid)] = label
+            return label
+
+    # ------------------------------------------------------------ 里程碑
+    def create_milestone(self, pid: int, payload: dict) -> dict:
+        with self.lock:
+            mid = self.next_milestone_id
+            self.next_milestone_id += 1
+            iid = mid  # 靶机里 id 与 iid 同号，够用
+            ms = {
+                "id": mid,
+                "iid": iid,
+                "project_id": pid,
+                "title": payload.get("title") or "untitled",
+                "description": payload.get("description") or "",
+                "state": "active",
+                "created_at": "2026-09-01T08:00:00.000Z",
+                "updated_at": "2026-09-01T08:00:00.000Z",
+                "start_date": payload.get("start_date"),
+                "due_date": payload.get("due_date"),
+                "web_url": f"http://localhost/-/milestones/{iid}",
+            }
+            self.milestones[(pid, mid)] = ms
+            return ms
+
+    # ------------------------------------------------------------ 评论
+    def create_note(self, pid: int, iid: int, payload: dict, system: bool = False) -> dict:
+        with self.lock:
+            nid = self.next_note_id
+            self.next_note_id += 1
+            note = {
+                "id": nid,
+                "body": payload.get("body") or "",
+                "author": {"id": 1, "username": "qa-bot", "name": "QA Bot",
+                           "state": "active"},
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+                "system": system,
+                "noteable_id": pid * 100 + iid,
+                "noteable_iid": iid,
+                "noteable_type": "Issue",
+                "confidential": False,
+            }
+            self.notes[(pid, iid, nid)] = note
+            return note
+
+    # ------------------------------------------------------------ 合并请求
+    def create_mr(self, pid: int, payload: dict) -> tuple[dict | None, str]:
+        """返回 (mr, 错误原因)。原因用于区分 400 与 409。"""
+        src = payload.get("source_branch") or ""
+        tgt = payload.get("target_branch") or ""
+        with self.lock:
+            branches = self.branches.get(pid) or {}
+            if src not in branches:
+                return None, "source_branch does not exist"
+            if tgt not in branches:
+                return None, "target_branch does not exist"
+            if src == tgt:
+                return None, "source and target branch must differ"
+            if any(m["source_branch"] == src and m["target_branch"] == tgt
+                   and m["state"] == "opened"
+                   for (p, _), m in self.mrs.items() if p == pid):
+                return None, "open merge request already exists for this source branch"
+            iid = self.next_mr_iid.get(pid, 1)
+            self.next_mr_iid[pid] = iid + 1
+            mr = {
+                "id": pid * 1000 + iid,
+                "iid": iid,
+                "project_id": pid,
+                "title": payload.get("title") or "untitled",
+                "description": payload.get("description") or "",
+                "state": "opened",
+                "merge_status": "can_be_merged",
+                "source_branch": src,
+                "target_branch": tgt,
+                "author": {"id": 1, "username": "qa-bot", "name": "QA Bot"},
+                "created_at": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+                "updated_at": time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime()),
+                "web_url": f"http://localhost/-/merge_requests/{iid}",
+                "sha": (self.commits.get(pid) or [{}])[0].get("id", "0" * 40),
+                "merged_at": None,
+                "changes_count": "1",
+                "user_notes_count": 0,
+            }
+            self.mrs[(pid, iid)] = mr
+            return mr, ""
+
+    # ------------------------------------------------------------ 成员
+    def add_member(self, scope: str, sid: int, payload: dict) -> dict | None:
+        """scope: project / group。返回 None 表示用户不存在。"""
+        uid = payload.get("user_id")
+        try:
+            uid = int(uid)
+        except (TypeError, ValueError):
+            return None
+        with self.lock:
+            if uid not in self.known_user_ids():
+                return None
+            brief = self.user_brief(uid) or {}
+            member = {
+                "id": uid,
+                "username": brief.get("username", ""),
+                "name": brief.get("name", ""),
+                "state": "active",
+                "access_level": int(payload.get("access_level") or 30),
+                "created_at": "2026-09-01T08:00:00.000Z",
+                "expires_at": payload.get("expires_at"),
+            }
+            if scope == "project":
+                self.members[(sid, uid)] = member
+            else:
+                self.group_members[(sid, uid)] = member
+            return member
+
+    # ------------------------------------------------------------ 仓库
+    def create_branch(self, pid: int, name: str, ref: str) -> dict | None:
+        with self.lock:
+            branches = self.branches.get(pid)
+            if branches is None:
+                return None
+            if name in branches:
+                return None          # 分支已存在 → 400
+            if ref not in branches:
+                return None          # 基准不存在 → 400
+            src_commit = branches[ref]["commit"]
+            branches[name] = {"name": name, "merged": False, "protected": False,
+                              "default": False, "commit": dict(src_commit)}
+            # 新分支继承基准分支的文件快照
+            for (p, br, path), content in list(self.files.items()):
+                if p == pid and br == ref:
+                    self.files[(pid, name, path)] = content
+            return branches[name]
+
+    def write_file(self, pid: int, branch: str, path: str, content: str,
+                   message: str) -> dict | None:
+        with self.lock:
+            if branch not in (self.branches.get(pid) or {}):
+                return None
+            self.files[(pid, branch, path)] = content
+            return self._make_commit(message or f"Update {path}", pid)
+
+    def remove_file(self, pid: int, branch: str, path: str, message: str) -> dict | None:
+        with self.lock:
+            if (pid, branch, path) not in self.files:
+                return None
+            del self.files[(pid, branch, path)]
+            return self._make_commit(message or f"Delete {path}", pid)
+
+    def create_tag(self, pid: int, name: str, ref: str, message: str) -> dict | None:
+        with self.lock:
+            if (pid, name) in self.tags:
+                return None
+            branches = self.branches.get(pid) or {}
+            target = branches.get(ref, {}).get("commit", {}).get("id") or ref
+            tag = {
+                "name": name,
+                "target": target,
+                "message": message or "",
+                "commit": {"id": target, "short_id": target[:8],
+                           "title": "Initial commit",
+                           "created_at": "2026-09-01T08:00:00.000Z"},
+                "protected": False,
+            }
+            self.tags[(pid, name)] = tag
+            return tag
+
+    # ------------------------------------------------------------ 片段
+    def create_snippet(self, payload: dict) -> dict:
+        with self.lock:
+            sid = self.next_snippet_id
+            self.next_snippet_id += 1
+            snippet = {
+                "id": sid,
+                "title": payload.get("title") or "untitled",
+                "file_name": payload.get("file_name") or "snippet.txt",
+                "description": payload.get("description") or "",
+                "visibility": payload.get("visibility") or "private",
+                "content": payload.get("content") or "",
+                "web_url": f"http://localhost/-/snippets/{sid}",
+                "raw_url": f"http://localhost/-/snippets/{sid}/raw",
+                "created_at": "2026-09-01T08:00:00.000Z",
+                "author": {"id": 1, "username": "qa-bot", "name": "QA Bot"},
+            }
+            self.snippets[sid] = snippet
+            return snippet
 
 
 STATE = State()
@@ -427,10 +736,55 @@ class Handler(BaseHTTPRequestHandler):
                 "web_url": "http://localhost/qa-bot",
             })
         if path == "/users" and method == "GET":
-            return self._paginated([{
+            rows = [{
                 "id": 1, "username": "qa-bot", "name": "QA Bot",
                 "state": "active", "web_url": "http://localhost/qa-bot",
-            }], q)
+            }]
+            rows += [dict(u, web_url=u.get("web_url", "")) for u in STATE.users_extra.values()]
+            return self._paginated(rows, q)
+        if path == "/users" and method == "POST":
+            # 管理员端点。靶机里「已认证」即视为管理员——真实实例用普通 Token
+            # 会拿到 403，那条边界由越权用例的第二身份覆盖，这里不重复造。
+            body = self._body()
+            missing = [k for k in ("username", "email", "password") if not body.get(k)]
+            if missing:
+                return self._error(400, "bad_request", f"{','.join(missing)} is missing")
+            if any(u["username"] == body["username"] for u in STATE.users_extra.values()):
+                return self._error(409, "conflict", "Username has already been taken")
+            return self._send(201, STATE.create_user(body))
+
+        m = re.fullmatch(r"/users/(\d+)/projects", path)
+        if m and method == "GET":
+            uid = int(m.group(1))
+            if uid not in STATE.known_user_ids():
+                return self._error(404, "not_found", "404 User Not Found")
+            rows = sorted(STATE.projects.values(), key=lambda p: p["id"])
+            return self._paginated(rows, q)
+
+        m = re.fullmatch(r"/users/(\d+)", path)
+        if m:
+            uid = int(m.group(1))
+            if method == "GET":
+                brief = STATE.user_brief(uid)
+                if brief is None:
+                    return self._error(404, "not_found", "404 User Not Found")
+                return self._send(200, dict(brief, created_at="2026-01-01T00:00:00.000Z",
+                                            web_url=f"http://localhost/{brief['username']}"))
+            if method == "DELETE":
+                # 管理员删除用户。内置用户（id=1）不允许删——真实 GitLab 对
+                # 实例所有者也是这个态度，替身跟着做，用例才不会在真实环境上翻车
+                if uid == 1:
+                    return self._error(403, "forbidden", "403 Forbidden")
+                with STATE.lock:
+                    existed = STATE.users_extra.pop(uid, None) is not None
+                if not existed:
+                    return self._error(404, "not_found", "404 User Not Found")
+                for key in [k for k in STATE.members if k[1] == uid]:
+                    del STATE.members[key]
+                return self._send(204, None)
+
+        if path == "/user/keys" and method == "GET":
+            return self._send(200, [])
 
         # ---- 项目集合
         if path == "/projects":
@@ -446,18 +800,54 @@ class Handler(BaseHTTPRequestHandler):
                 if not name:
                     return self._error(400, "bad_request", "name is missing")
                 proj = STATE.create_project(body)
+                # namespace_id：在指定群组下创建。忽略它的话，
+                # 「群组下建的项目归该群组」这条语义在靶机上永远测不到
+                if body.get("namespace_id") is not None:
+                    grp = STATE.groups.get(int(body["namespace_id"]))
+                    if grp is not None:
+                        proj["namespace"] = {"id": grp["id"], "name": grp["name"],
+                                             "path": grp["path"], "kind": "group"}
+                        proj["path_with_namespace"] = f"{grp['path']}/{proj['path']}"
                 return self._send(201, proj)
+
+        # 项目成员候选用户：真实 GitLab 用它做 @ 提醒的候选列表
+        m = re.fullmatch(r"/projects/([^/]+)/users", path)
+        if m and method == "GET":
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            rows = [{"id": uid, "username": b["username"], "name": b["name"],
+                     "state": "active"}
+                    for uid in sorted(STATE.known_user_ids())
+                    if (b := STATE.user_brief(uid))]
+            return self._paginated(rows, q)
 
         m = re.fullmatch(r"/projects/([^/]+)", path)
         if m:
-            pid = _as_int(m.group(1))
+            raw = m.group(1)
+            pid = _as_int(raw)
             proj = STATE.projects.get(pid) if pid is not None else None
+            if proj is None and pid is None:
+                # 按完整路径访问（namespace/project）。这条语义和按 id 访问
+                # 必须分开：前端大量依赖 path 路由，替身不支持就测不到。
+                full = urllib.parse.unquote(raw)
+                proj = next((p for p in STATE.projects.values()
+                             if p.get("path_with_namespace") == full), None)
             if method == "GET":
                 if proj is None:
                     return self._error(404, "not_found", "404 Project Not Found")
                 return self._send(200, proj)
+            if method == "PUT":
+                if proj is None:
+                    return self._error(404, "not_found", "404 Project Not Found")
+                body = self._body()
+                for k in ("name", "description", "visibility", "default_branch"):
+                    if k in body:
+                        proj[k] = body[k]
+                return self._send(200, proj)
             if method == "DELETE":
-                if not STATE.delete_project(pid or -1):
+                target = proj["id"] if proj is not None else (pid or -1)
+                if not STATE.delete_project(target):
                     return self._error(404, "not_found", "404 Project Not Found")
                 return self._send(202, {"message": "202 Accepted"})
 
@@ -498,9 +888,15 @@ class Handler(BaseHTTPRequestHandler):
                 if body.get("state_event") == "close":
                     iss["state"] = "closed"
                     iss["closed_at"] = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+                    # 关闭动作会产生一条系统评论。真实 GitLab 就是这样，
+                    # 前端靠 system=true 把它渲染成「某某关闭了议题」而不是一条人写的留言。
+                    STATE.create_note(pid, iid, {"body": "closed"}, system=True)
                 elif body.get("state_event") == "reopen":
                     iss["state"] = "opened"
                     iss["closed_at"] = None
+                    STATE.create_note(pid, iid, {"body": "reopened"}, system=True)
+                if "milestone_id" in body:
+                    iss["milestone_id"] = body.get("milestone_id")
                 iss["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
                 proj = STATE.projects.get(pid)
                 if proj is not None:
@@ -511,36 +907,645 @@ class Handler(BaseHTTPRequestHandler):
                 return self._send(200, iss)
 
         # ---- 仓库
-        if re.fullmatch(r"/projects/([^/]+)/repository/tree", path):
-            return self._paginated([
-                {"id": "t1", "name": "README.md", "type": "blob", "path": "README.md",
-                 "mode": "100644"},
-                {"id": "t2", "name": "src", "type": "tree", "path": "src", "mode": "040000"},
-            ], q)
-        if re.fullmatch(r"/projects/([^/]+)/repository/commits", path):
-            return self._paginated([
-                {"id": "c" * 40, "short_id": "ccccccc", "title": "Initial commit",
-                 "message": "Initial commit", "author_name": "QA Bot",
-                 "author_email": "qa-bot@example.com",
-                 "created_at": "2026-09-01T08:00:00.000Z",
-                 "web_url": "http://localhost/c"},
-            ], q)
-        if re.fullmatch(r"/projects/([^/]+)/repository/branches", path):
-            return self._paginated([
-                {"name": "main", "merged": False, "protected": True,
-                 "default": True, "commit": {"id": "c" * 40, "short_id": "ccccccc"}},
-                {"name": "develop", "merged": False, "protected": False,
-                 "default": False, "commit": {"id": "d" * 40, "short_id": "ddddddd"}},
-            ], q)
+        # 项目不存在一律 404：真实 GitLab 对不存在的仓库就是这个行为。
+        # 早期的靶机不管 pid 直接返回数据，于是「拼错路径」的用例永远测不出问题。
+        m = re.fullmatch(r"/projects/([^/]+)/repository/tree", path)
+        if m and method == "GET":
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            ref = q.get("ref") or "main"
+            rows = [{"id": f"blob-{fp}", "name": fp, "type": "blob",
+                     "path": fp, "mode": "100644"}
+                    for (p, br, fp) in STATE.files if p == pid and br == ref]
+            rows.sort(key=lambda r: r["name"])
+            return self._paginated(rows, q)
+
+        m = re.fullmatch(r"/projects/([^/]+)/repository/commits", path)
+        if m and method == "GET":
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            return self._paginated(list(STATE.commits.get(pid, [])), q)
+        if m and method == "POST":
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            body = self._body()
+            branch = body.get("branch") or ""
+            message = body.get("commit_message") or ""
+            actions = body.get("actions") or []
+            branches = STATE.branches.get(pid) or {}
+            if branch not in branches:
+                return self._error(400, "bad_request", "branch does not exist")
+            if not message or not actions:
+                return self._error(400, "bad_request", "commit_message/actions is missing")
+            for act in actions:
+                kind = act.get("action")
+                fp = act.get("file_path") or ""
+                with STATE.lock:
+                    exists = (pid, branch, fp) in STATE.files
+                if kind == "create" and exists:
+                    return self._error(400, "bad_request", f"{fp} already exists")
+                if kind in ("update", "delete") and not exists:
+                    return self._error(400, "bad_request", f"{fp} does not exist")
+                if kind == "delete":
+                    STATE.remove_file(pid, branch, fp, message)
+                else:
+                    STATE.write_file(pid, branch, fp, act.get("content") or "", message)
+            return self._send(201, STATE.commits.get(pid, [{}])[0])
+
+        m = re.fullmatch(r"/projects/([^/]+)/repository/commits/([^/]+)", path)
+        if m and method == "GET":
+            pid, sha = _as_int(m.group(1)), urllib.parse.unquote(m.group(2))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            commit = next((c for c in STATE.commits.get(pid, [])
+                           if c["id"] == sha or c["id"].startswith(sha)), None)
+            if commit is None:
+                return self._error(404, "not_found", "404 Commit Not Found")
+            return self._send(200, commit)
+
+        m = re.fullmatch(r"/projects/([^/]+)/repository/branches", path)
+        if m and method == "GET":
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            rows = sorted((STATE.branches.get(pid) or {}).values(),
+                          key=lambda b: b["name"])
+            return self._paginated(rows, q)
+        if m and method == "POST":
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            name, ref = q.get("branch") or "", q.get("ref") or ""
+            if not name or not ref:
+                return self._error(400, "bad_request", "branch/ref is missing")
+            branch = STATE.create_branch(pid, name, ref)
+            if branch is None:
+                # 已存在或基准不存在，都表现为 400——真实 GitLab 的措辞不同，
+                # 但状态码一致，用例按状态码断言即可
+                return self._error(400, "bad_request", "branch already exists or ref invalid")
+            return self._send(201, branch)
+
+        m = re.fullmatch(r"/projects/([^/]+)/repository/branches/([^/]+)", path)
+        if m:
+            pid = _as_int(m.group(1))
+            name = urllib.parse.unquote(m.group(2))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            branch = (STATE.branches.get(pid) or {}).get(name)
+            if method == "GET":
+                if branch is None:
+                    return self._error(404, "not_found", "404 Branch Not Found")
+                return self._send(200, branch)
+            if method == "DELETE":
+                if branch is None:
+                    return self._error(404, "not_found", "404 Branch Not Found")
+                if branch.get("default"):
+                    # 默认分支删不掉：这是 GitLab 的保护，不是缺陷
+                    return self._error(400, "bad_request", "Cannot delete the default branch")
+                with STATE.lock:
+                    del STATE.branches[pid][name]
+                    for key in [k for k in STATE.files if k[0] == pid and k[1] == name]:
+                        del STATE.files[key]
+                return self._send(204, None)
+
+        m = re.fullmatch(r"/projects/([^/]+)/repository/branches/([^/]+)/protect", path)
+        if m and method == "PUT":
+            pid = _as_int(m.group(1))
+            name = urllib.parse.unquote(m.group(2))
+            branch = (STATE.branches.get(pid) or {}).get(name)
+            if branch is None:
+                return self._error(404, "not_found", "404 Branch Not Found")
+            branch["protected"] = True
+            return self._send(200, branch)
+
+        m = re.fullmatch(r"/projects/([^/]+)/repository/files/([^/]+)", path)
+        if m:
+            pid = _as_int(m.group(1))
+            fp = urllib.parse.unquote(m.group(2))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            ref = q.get("ref") or "main"
+            if method == "GET":
+                content = STATE.files.get((pid, ref, fp))
+                if content is None:
+                    return self._error(404, "not_found", "404 File Not Found")
+                head = (STATE.commits.get(pid) or [{}])[0]
+                return self._send(200, {
+                    "file_path": fp, "branch": ref, "ref": ref,
+                    "encoding": "base64",
+                    "content": base64.b64encode(content.encode("utf-8")).decode("ascii"),
+                    "blob_id": "b" * 40,
+                    "commit_id": head.get("id", ""),
+                    "last_commit_id": head.get("id", ""),
+                })
+            body = self._body()
+            branch = body.get("branch") or ref
+            message = body.get("commit_message") or ""
+            if branch not in (STATE.branches.get(pid) or {}):
+                return self._error(400, "bad_request", "branch does not exist")
+            if not message:
+                return self._error(400, "bad_request", "commit_message is missing")
+            exists = (pid, branch, fp) in STATE.files
+            if method == "POST":
+                if exists:
+                    return self._error(400, "bad_request", "file already exists")
+                commit = STATE.write_file(pid, branch, fp, body.get("content") or "", message)
+                return self._send(201, {"file_path": fp, "branch": branch})
+            if method == "PUT":
+                if not exists:
+                    return self._error(404, "not_found", "404 File Not Found")
+                STATE.write_file(pid, branch, fp, body.get("content") or "", message)
+                return self._send(200, {"file_path": fp, "branch": branch})
+            if method == "DELETE":
+                if not exists:
+                    return self._error(404, "not_found", "404 File Not Found")
+                STATE.remove_file(pid, branch, fp, message)
+                return self._send(204, None)
+
+        m = re.fullmatch(r"/projects/([^/]+)/languages", path)
+        if m and method == "GET":
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            return self._send(200, {"Python": 85.5, "Shell": 14.5})
+
+        m = re.fullmatch(r"/projects/([^/]+)/repository/tags", path)
+        if m and method == "GET":
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            rows = [t for (p, _n), t in STATE.tags.items() if p == pid]
+            return self._paginated(rows, q)
+        if m and method == "POST":
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            body = self._body()
+            name = body.get("tag_name") or ""
+            if not name:
+                return self._error(400, "bad_request", "tag_name is missing")
+            tag = STATE.create_tag(pid, name, body.get("ref") or "main",
+                                   body.get("message") or "")
+            if tag is None:
+                return self._error(409, "conflict", "tag already exists")
+            return self._send(201, tag)
+
+        m = re.fullmatch(r"/projects/([^/]+)/repository/compare", path)
+        if m and method == "GET":
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            frm, to = q.get("from") or "main", q.get("to") or "main"
+            return self._send(200, {
+                "commit": {},
+                "commits": list(STATE.commits.get(pid, []))[:5],
+                "diffs": [],
+                "compare_timeout": False,
+                "compare_same_ref": frm == to,
+            })
+
+        # ---- 标签
+        m = re.fullmatch(r"/projects/([^/]+)/labels", path)
+        if m:
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            if method == "GET":
+                rows = sorted((lb for (p, _), lb in STATE.labels.items() if p == pid),
+                              key=lambda l: l["id"])
+                return self._paginated(rows, q)
+            if method == "POST":
+                body = self._body()
+                if not (body.get("name") or "").strip():
+                    return self._error(400, "bad_request", "name is missing")
+                label = STATE.create_label(pid, body)
+                if label is None:
+                    # 同名重复创建：GitLab 返回 409，且 body 里带 message。
+                    # 数据工厂重跑时最先炸在这里，所以这条语义必须有
+                    return self._error(409, "conflict", "Label already exists")
+                return self._send(201, label)
+
+        m = re.fullmatch(r"/projects/([^/]+)/labels/(\d+)", path)
+        if m:
+            pid, lid = _as_int(m.group(1)), int(m.group(2))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            label = STATE.labels.get((pid, lid))
+            if method == "GET":
+                if label is None:
+                    return self._error(404, "not_found", "404 Label Not Found")
+                return self._send(200, label)
+            if method == "PUT":
+                if label is None:
+                    return self._error(404, "not_found", "404 Label Not Found")
+                body = self._body()
+                # new_name 是 GitLab 改名的字段名，改完响应里仍叫 name
+                if new_name := body.get("new_name"):
+                    label["name"] = new_name
+                for k in ("name", "color", "description"):
+                    if k in body:
+                        label[k] = body[k]
+                return self._send(200, label)
+            if method == "DELETE":
+                if label is None:
+                    return self._error(404, "not_found", "404 Label Not Found")
+                with STATE.lock:
+                    del STATE.labels[(pid, lid)]
+                return self._send(204, None)
+
+        m = re.fullmatch(r"/groups/(\d+)/labels", path)
+        if m and method == "GET":
+            # 群组标签在靶机里按群组分桶存：真实 GitLab 的群组标签与项目标签
+            # 是两套独立集合，混在一起会让「继承关系」的断言失去意义
+            gid = int(m.group(1))
+            rows = sorted((lb for (g, _), lb in STATE.labels.items() if g == -gid),
+                          key=lambda l: l["id"])
+            return self._paginated(rows, q)
+
+        # ---- 里程碑
+        m = re.fullmatch(r"/projects/([^/]+)/milestones", path)
+        if m:
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            if method == "GET":
+                rows = [ms for (p, _), ms in STATE.milestones.items() if p == pid]
+                if state := q.get("state"):
+                    rows = [m2 for m2 in rows if m2["state"] == state]
+                rows.sort(key=lambda x: x["id"])
+                return self._paginated(rows, q)
+            if method == "POST":
+                body = self._body()
+                if not (body.get("title") or "").strip():
+                    return self._error(400, "bad_request", "title is missing")
+                return self._send(201, STATE.create_milestone(pid, body))
+
+        m = re.fullmatch(r"/projects/([^/]+)/milestones/(\d+)", path)
+        if m:
+            pid, mid = _as_int(m.group(1)), int(m.group(2))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            ms = STATE.milestones.get((pid, mid))
+            if method == "GET":
+                if ms is None:
+                    return self._error(404, "not_found", "404 Milestone Not Found")
+                return self._send(200, ms)
+            if method == "PUT":
+                if ms is None:
+                    return self._error(404, "not_found", "404 Milestone Not Found")
+                body = self._body()
+                for k in ("title", "description", "due_date", "start_date"):
+                    if k in body:
+                        ms[k] = body[k]
+                # 关闭/重启：active ↔ closed 是里程碑的两态，和议题的 opened/closed
+                # 命名不一致，是最容易写错断言的地方之一
+                if (event := body.get("state_event")) == "close":
+                    ms["state"] = "closed"
+                elif event == "activate":
+                    ms["state"] = "active"
+                ms["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+                return self._send(200, ms)
+            if method == "DELETE":
+                if ms is None:
+                    return self._error(404, "not_found", "404 Milestone Not Found")
+                with STATE.lock:
+                    del STATE.milestones[(pid, mid)]
+                return self._send(204, None)
+
+        m = re.fullmatch(r"/projects/([^/]+)/milestones/(\d+)/issues", path)
+        if m and method == "GET":
+            pid, mid = _as_int(m.group(1)), int(m.group(2))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            if (pid, mid) not in STATE.milestones:
+                return self._error(404, "not_found", "404 Milestone Not Found")
+            rows = [i for (p, _), i in STATE.issues.items()
+                    if p == pid and i.get("milestone_id") == mid]
+            return self._paginated(rows, q)
+
+        # ---- 议题评论
+        m = re.fullmatch(r"/projects/([^/]+)/issues/(\d+)/notes", path)
+        if m:
+            pid, iid = _as_int(m.group(1)), int(m.group(2))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            if (pid, iid) not in STATE.issues:
+                return self._error(404, "not_found", "404 Issue Not Found")
+            if method == "GET":
+                rows = [n for (p, i, _), n in STATE.notes.items() if p == pid and i == iid]
+                rows.sort(key=lambda n: n["id"])
+                if q.get("sort") == "desc":
+                    rows.reverse()
+                return self._paginated(rows, q)
+            if method == "POST":
+                body = self._body()
+                if not (body.get("body") or "").strip():
+                    return self._error(400, "bad_request", "body is missing")
+                return self._send(201, STATE.create_note(pid, iid, body))
+
+        m = re.fullmatch(r"/projects/([^/]+)/issues/(\d+)/notes/(\d+)", path)
+        if m:
+            pid, iid, nid = _as_int(m.group(1)), int(m.group(2)), int(m.group(3))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            note = STATE.notes.get((pid, iid, nid))
+            if method == "GET":
+                if note is None:
+                    return self._error(404, "not_found", "404 Note Not Found")
+                return self._send(200, note)
+            if method == "PUT":
+                if note is None:
+                    return self._error(404, "not_found", "404 Note Not Found")
+                body = self._body()
+                if "body" in body:
+                    note["body"] = body["body"]
+                note["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+                return self._send(200, note)
+            if method == "DELETE":
+                if note is None:
+                    return self._error(404, "not_found", "404 Note Not Found")
+                with STATE.lock:
+                    del STATE.notes[(pid, iid, nid)]
+                return self._send(204, None)
+
+        # ---- 合并请求
+        m = re.fullmatch(r"/projects/([^/]+)/merge_requests", path)
+        if m:
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            if method == "GET":
+                rows = [mr for (p, _), mr in STATE.mrs.items() if p == pid]
+                if state := q.get("state"):
+                    rows = [r for r in rows if r["state"] == state]
+                rows.sort(key=lambda r: r["iid"])
+                return self._paginated(rows, q)
+            if method == "POST":
+                body = self._body()
+                if not (body.get("title") or "").strip():
+                    return self._error(400, "bad_request", "title is missing")
+                mr, reason = STATE.create_mr(pid, body)
+                if mr is None:
+                    code = 409 if "already exists" in reason else 400
+                    return self._error(code, "bad_request", reason)
+                return self._send(201, mr)
+
+        m = re.fullmatch(r"/projects/([^/]+)/merge_requests/(\d+)", path)
+        if m:
+            pid, iid = _as_int(m.group(1)), int(m.group(2))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            mr = STATE.mrs.get((pid, iid))
+            if method == "GET":
+                if mr is None:
+                    return self._error(404, "not_found", "404 Merge Request Not Found")
+                return self._send(200, mr)
+            if method == "PUT":
+                if mr is None:
+                    return self._error(404, "not_found", "404 Merge Request Not Found")
+                body = self._body()
+                for k in ("title", "description", "target_branch", "assignee_id"):
+                    if k in body:
+                        mr[k] = body[k]
+                if (event := body.get("state_event")) == "close":
+                    mr["state"] = "closed"
+                elif event == "reopen":
+                    mr["state"] = "opened"
+                mr["updated_at"] = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+                return self._send(200, mr)
+
+        m = re.fullmatch(r"/projects/([^/]+)/merge_requests/(\d+)/changes", path)
+        if m and method == "GET":
+            pid, iid = _as_int(m.group(1)), int(m.group(2))
+            mr = STATE.mrs.get((pid, iid))
+            if mr is None:
+                return self._error(404, "not_found", "404 Merge Request Not Found")
+            return self._send(200, dict(mr, changes=[
+                {"old_path": "README.md", "new_path": "README.md",
+                 "a_mode": "100644", "b_mode": "100644",
+                 "new_file": False, "renamed_file": False, "deleted_file": False,
+                 "diff": "@@ -1 +1,2 @@\n+# updated by qa\n"},
+            ]))
+
+        m = re.fullmatch(r"/projects/([^/]+)/merge_requests/(\d+)/merge", path)
+        if m and method == "PUT":
+            pid, iid = _as_int(m.group(1)), int(m.group(2))
+            mr = STATE.mrs.get((pid, iid))
+            if mr is None:
+                return self._error(404, "not_found", "404 Merge Request Not Found")
+            if mr["state"] == "merged":
+                return self._error(405, "method_not_allowed", "405 Method Not Allowed")
+            if mr["state"] == "closed":
+                return self._error(406, "not_acceptable", "406 Not Acceptable")
+            mr["state"] = "merged"
+            mr["merged_at"] = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+            mr["merge_status"] = "merged"
+            return self._send(200, mr)
+
+        # ---- 成员
+        m = re.fullmatch(r"/projects/([^/]+)/members", path)
+        if m:
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            if method == "GET":
+                rows = sorted((mb for (p, _), mb in STATE.members.items() if p == pid),
+                              key=lambda x: x["id"])
+                return self._paginated(rows, q)
+            if method == "POST":
+                body = self._body()
+                with STATE.lock:
+                    exists = (pid, int(body.get("user_id") or -1)) in STATE.members
+                if exists:
+                    return self._error(409, "conflict", "Member already exists")
+                member = STATE.add_member("project", pid, body)
+                if member is None:
+                    return self._error(404, "not_found", "404 User Not Found")
+                return self._send(201, member)
+
+        m = re.fullmatch(r"/projects/([^/]+)/members/(\d+)", path)
+        if m:
+            pid, uid = _as_int(m.group(1)), int(m.group(2))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            member = STATE.members.get((pid, uid))
+            if method == "GET":
+                if member is None:
+                    return self._error(404, "not_found", "404 Membership Not Found")
+                return self._send(200, member)
+            if method == "PUT":
+                if member is None:
+                    return self._error(404, "not_found", "404 Membership Not Found")
+                member["access_level"] = int(self._body().get("access_level")
+                                             or member["access_level"])
+                return self._send(200, member)
+            if method == "DELETE":
+                if member is None:
+                    return self._error(404, "not_found", "404 Membership Not Found")
+                with STATE.lock:
+                    del STATE.members[(pid, uid)]
+                return self._send(204, None)
+
+        m = re.fullmatch(r"/groups/(\d+)/members", path)
+        if m:
+            gid = int(m.group(1))
+            if method == "GET":
+                rows = sorted((mb for (g, _), mb in STATE.group_members.items() if g == gid),
+                              key=lambda x: x["id"])
+                return self._paginated(rows, q)
+            if method == "POST":
+                body = self._body()
+                with STATE.lock:
+                    exists = (gid, int(body.get("user_id") or -1)) in STATE.group_members
+                if exists:
+                    return self._error(409, "conflict", "Member already exists")
+                member = STATE.add_member("group", gid, body)
+                if member is None:
+                    return self._error(404, "not_found", "404 User Not Found")
+                return self._send(201, member)
+
+        # ---- Wiki
+        m = re.fullmatch(r"/projects/([^/]+)/wikis", path)
+        if m and method == "GET":
+            pid = _as_int(m.group(1))
+            if pid not in STATE.projects:
+                return self._error(404, "not_found", "404 Project Not Found")
+            return self._paginated([{
+                "slug": "home", "title": "home", "format": "markdown",
+                "encoding": "UTF-8", "content": "# Home\n\n由靶机生成的 Wiki 首页。",
+            }], q)
 
         # ---- 群组
         if path == "/groups" and method == "GET":
-            return self._paginated(list(STATE.groups.values()), q)
+            return self._paginated(sorted(STATE.groups.values(), key=lambda g: g["id"]), q)
         if path == "/groups" and method == "POST":
             body = self._body()
             if not (body.get("name") or "").strip():
                 return self._error(400, "bad_request", "name is missing")
             return self._send(201, STATE.create_group(body))
+
+        m = re.fullmatch(r"/groups/(\d+)", path)
+        if m:
+            gid = int(m.group(1))
+            grp = STATE.groups.get(gid)
+            if method == "GET":
+                if grp is None:
+                    return self._error(404, "not_found", "404 Group Not Found")
+                return self._send(200, grp)
+            if method == "PUT":
+                if grp is None:
+                    return self._error(404, "not_found", "404 Group Not Found")
+                body = self._body()
+                for k in ("name", "path", "description", "visibility"):
+                    if k in body:
+                        grp[k] = body[k]
+                return self._send(200, grp)
+            if method == "DELETE":
+                if grp is None:
+                    return self._error(404, "not_found", "404 Group Not Found")
+                with STATE.lock:
+                    del STATE.groups[gid]
+                    for key in [k for k in STATE.group_members if k[0] == gid]:
+                        del STATE.group_members[key]
+                return self._send(202, {"message": "202 Accepted"})
+
+        m = re.fullmatch(r"/groups/(\d+)/projects", path)
+        if m:
+            gid = int(m.group(1))
+            if gid not in STATE.groups:
+                return self._error(404, "not_found", "404 Group Not Found")
+            if method == "GET":
+                rows = [p for p in STATE.projects.values()
+                        if (p.get("namespace") or {}).get("id") == gid]
+                rows.sort(key=lambda p: p["id"])
+                return self._paginated(rows, q)
+            if method == "POST":
+                body = self._body()
+                if not (body.get("name") or "").strip():
+                    return self._error(400, "bad_request", "name is missing")
+                proj = STATE.create_project(body)
+                grp = STATE.groups[gid]
+                proj["namespace"] = {"id": gid, "name": grp["name"],
+                                     "path": grp["path"], "kind": "group"}
+                proj["path_with_namespace"] = f"{grp['path']}/{proj['path']}"
+                return self._send(201, proj)
+
+        m = re.fullmatch(r"/groups/(\d+)/subgroups", path)
+        if m:
+            gid = int(m.group(1))
+            if gid not in STATE.groups:
+                return self._error(404, "not_found", "404 Group Not Found")
+            if method == "GET":
+                rows = [g for g in STATE.groups.values() if g.get("parent_id") == gid]
+                rows.sort(key=lambda g: g["id"])
+                return self._paginated(rows, q)
+            if method == "POST":
+                body = self._body()
+                if not (body.get("name") or "").strip():
+                    return self._error(400, "bad_request", "name is missing")
+                sub = STATE.create_group(dict(body, parent_id=gid))
+                sub["full_path"] = f"{STATE.groups[gid]['path']}/{sub['path']}"
+                return self._send(201, sub)
+
+        # ---- 实例级
+        if path == "/namespaces" and method == "GET":
+            rows = [{"id": g["id"], "name": g["name"], "path": g["path"],
+                     "kind": "group", "full_path": g.get("full_path", g["path"])}
+                    for g in STATE.groups.values()]
+            rows.append({"id": 1, "name": "QA Bot", "path": "qa-bot",
+                         "kind": "user", "full_path": "qa-bot"})
+            rows.sort(key=lambda r: r["id"])
+            return self._paginated(rows, q)
+
+        if path == "/search" and method == "GET":
+            scope, term = q.get("scope") or "", (q.get("search") or "").lower()
+            if not scope:
+                return self._error(400, "bad_request", "scope is missing")
+            if scope == "projects":
+                rows = [p for p in STATE.projects.values()
+                        if term in p["name"].lower() or term in p["path"].lower()]
+                rows.sort(key=lambda p: p["id"])
+                return self._paginated(rows, q)
+            if scope == "issues":
+                rows = [i for i in STATE.issues.values()
+                        if term in (i["title"] or "").lower()]
+                return self._paginated(rows, q)
+            return self._paginated([], q)
+
+        if path == "/snippets" and method == "GET":
+            rows = sorted(STATE.snippets.values(), key=lambda s: s["id"])
+            return self._paginated(rows, q)
+        if path == "/snippets" and method == "POST":
+            body = self._body()
+            if not (body.get("title") or "").strip() or not body.get("file_name"):
+                return self._error(400, "bad_request", "title/file_name is missing")
+            return self._send(201, STATE.create_snippet(body))
+
+        m = re.fullmatch(r"/snippets/(\d+)", path)
+        if m:
+            sid = int(m.group(1))
+            snippet = STATE.snippets.get(sid)
+            if method == "GET":
+                if snippet is None:
+                    return self._error(404, "not_found", "404 Snippet Not Found")
+                return self._send(200, snippet)
+            if method == "DELETE":
+                if snippet is None:
+                    return self._error(404, "not_found", "404 Snippet Not Found")
+                with STATE.lock:
+                    del STATE.snippets[sid]
+                return self._send(204, None)
+
+        if path == "/features" and method == "GET":
+            # 管理员端点：特性开关列表。靶机给一份固定的，
+            # 断言价值在于「非管理员拿不到」而不是具体内容
+            return self._send(200, [
+                {"name": "issue_weights", "state": "on", "gates": []},
+                {"name": "merge_request_approvers", "state": "off", "gates": []},
+            ])
 
         self._error(404, "not_found", f"404 route not found: {method} {path}")
 

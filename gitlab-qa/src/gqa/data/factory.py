@@ -13,6 +13,7 @@ import string
 import time
 from dataclasses import dataclass, field
 
+from gqa.api.client import GitLabError
 from gqa.api.resources import GitLab
 
 
@@ -28,17 +29,29 @@ class ResourceLedger:
     projects: list[int] = field(default_factory=list)
     groups: list[int] = field(default_factory=list)
     issues: list[tuple[int, int]] = field(default_factory=list)
+    labels: list[tuple[int, int]] = field(default_factory=list)
+    milestones: list[tuple[int, int]] = field(default_factory=list)
+    notes: list[tuple[int, int, int]] = field(default_factory=list)
+    branches: list[tuple[int, str]] = field(default_factory=list)
+    tags: list[tuple[int, str]] = field(default_factory=list)
+    snippets: list[int] = field(default_factory=list)
+    users: list[int] = field(default_factory=list)
     cleanup_log: list[str] = field(default_factory=list)
 
     def note(self, msg: str) -> None:
         self.cleanup_log.append(msg)
 
     def report(self) -> str:
-        if not (self.projects or self.groups or self.issues):
+        counted = (self.projects, self.groups, self.issues, self.labels,
+                   self.milestones, self.notes, self.branches, self.snippets)
+        if not any(counted):
             return "本次会话未创建任何资源"
         lines = [
             f"创建资源：项目 {len(self.projects)} / 群组 {len(self.groups)} / "
-            f"议题 {len(self.issues)}",
+            f"议题 {len(self.issues)} / 标签 {len(self.labels)} / "
+            f"里程碑 {len(self.milestones)} / 评论 {len(self.notes)} / "
+            f"分支 {len(self.branches)} / 标签(tag) {len(self.tags)} / "
+            f"片段 {len(self.snippets)}",
             "",
         ]
         lines += self.cleanup_log or ["（无清理记录）"]
@@ -65,7 +78,23 @@ class DataFactory:
         name = name or self._uniq("proj")
         extra.setdefault("visibility", "private")
         extra.setdefault("initialize_with_readme", True)
-        resp = self.gl.projects.create(name, **extra)
+
+        # 建项目是所有用例的**前置动作**，它一失败整批用例报的是 fixture error
+        # 而不是用例失败——报告上看不出到底哪里坏了。这里重试一次
+        # （并行跑时实例偶发 429/超时），仍失败就把服务端原话抛出来。
+        try:
+            resp = self.gl.projects.create(name, **extra)
+        except GitLabError as first:
+            time.sleep(1.5)
+            try:
+                resp = self.gl.projects.create(f"{name}-r", **extra)
+            except GitLabError as second:
+                raise RuntimeError(
+                    f"创建测试项目失败：首次 {first.status} {first.message}；"
+                    f"重试后 {second.status} {second.message}；"
+                    f"请求 name={name} extra={extra}"
+                ) from second
+
         data = resp.json_data
         pid = data["id"]
         self.ledger.projects.append(pid)
@@ -88,8 +117,94 @@ class DataFactory:
         self.ledger.groups.append(gid)
         return resp.json_data
 
+    def label(self, project_id: int, name: str | None = None,
+              color: str = "#0033cc") -> dict:
+        name = name or self._uniq("label")
+        resp = self.gl.labels.create(project_id, name, color)
+        data = resp.json_data
+        self.ledger.labels.append((project_id, data["id"]))
+        return data
+
+    def milestone(self, project_id: int, title: str | None = None, **extra) -> dict:
+        title = title or self._uniq("milestone")
+        resp = self.gl.milestones.create(project_id, title, **extra)
+        data = resp.json_data
+        self.ledger.milestones.append((project_id, data["id"]))
+        return data
+
+    def note(self, project_id: int, iid: int, body: str = "由自动化创建的评论") -> dict:
+        resp = self.gl.notes.create(project_id, iid, body)
+        data = resp.json_data
+        self.ledger.notes.append((project_id, iid, data["id"]))
+        return data
+
+    def branch(self, project_id: int, name: str | None = None, ref: str = "main") -> dict:
+        """创建分支。默认分支名由项目决定，写死 main 在别的实例上会 404。"""
+        name = name or self._uniq("branch")
+        resp = self.gl.repository.create_branch(project_id, name, ref)
+        data = resp.json_data
+        self.ledger.branches.append((project_id, name))
+        return data
+
+    def file(self, project_id: int, path: str, content: str, branch: str = "main"):
+        """写文件。不登记回收：它随项目一起消失，单独删反而多一次失败点。"""
+        return self.gl.repository.create_file(
+            project_id, path, branch, content, f"qa: add {path}")
+
+    def tag(self, project_id: int, name: str | None = None, ref: str = "main") -> dict:
+        name = name or self._uniq("tag")
+        resp = self.gl.repository.create_tag(project_id, name, ref)
+        data = resp.json_data
+        self.ledger.tags.append((project_id, name))
+        return data
+
+    def merge_request(self, project_id: int, title: str | None = None,
+                      target_branch: str = "main") -> dict:
+        """一条能合并的 MR 需要：独立分支 + 分支上确有改动。
+
+        只建分支不改文件，GitLab 会返回 400（两个分支没有差异），
+        而这和「接口坏了」长得一模一样——差别全靠这一步。
+        """
+        title = title or self._uniq("mr")
+        src = self.branch(project_id, ref=target_branch)["name"]
+        self.file(project_id, f"qa-{src}.txt", f"由 MR {title} 引入的改动\n", branch=src)
+        resp = self.gl.merge_requests.create(project_id, src, target_branch, title)
+        if resp.status != 201:
+            raise RuntimeError(f"创建 MR 失败（{resp.status}）：{resp.json_data}")
+        return resp.json_data
+
+    def snippet(self, title: str | None = None) -> dict:
+        title = title or self._uniq("snippet")
+        resp = self.gl.snippets.create(title, "qa.txt", f"content of {title}\n")
+        data = resp.json_data
+        self.ledger.snippets.append(data["id"])
+        return data
+
     # ------------------------------------------------------------ 回收
     def cleanup(self) -> None:
+        # 依附型资源先删：评论 → 标签/里程碑 → 议题 → 分支 → 项目 → 群组。
+        # 顺序反了会出现「删不掉的项目」：GitLab 对仍有子资源的项目删除是允许的，
+        # 但清理记录里会留下一串 404，把真正该看的残留信息淹掉。
+        for project_id, iid, note_id in self.ledger.notes:
+            try:
+                self.gl.notes.delete(project_id, iid, note_id)
+                self.ledger.note(f"[ok] 删除评论 {project_id}#{iid}/{note_id}")
+            except Exception as exc:  # noqa: BLE001
+                self.ledger.note(f"[残留] 评论 {project_id}#{iid}/{note_id}: {exc}")
+
+        for pid, label_id in self.ledger.labels:
+            try:
+                self.gl.labels.delete(pid, label_id)
+                self.ledger.note(f"[ok] 删除标签 {pid}/{label_id}")
+            except Exception as exc:  # noqa: BLE001
+                self.ledger.note(f"[残留] 标签 {pid}/{label_id}: {exc}")
+
+        for pid, milestone_id in self.ledger.milestones:
+            try:
+                self.gl.milestones.delete(pid, milestone_id)
+                self.ledger.note(f"[ok] 删除里程碑 {pid}/{milestone_id}")
+            except Exception as exc:  # noqa: BLE001
+                self.ledger.note(f"[残留] 里程碑 {pid}/{milestone_id}: {exc}")
         # 先删议题（依附于项目），再删项目，最后删群组
         for project_id, iid in self.ledger.issues:
             try:
@@ -99,6 +214,14 @@ class DataFactory:
                 self.ledger.note(f"[ok] 删除议题 {project_id}#{iid}")
             except Exception as exc:  # noqa: BLE001
                 self.ledger.note(f"[残留] 议题 {project_id}#{iid}: {exc}")
+
+        for pid, name in self.ledger.branches:
+            try:
+                self.gl.repository.delete_branch(pid, name)
+                self.ledger.note(f"[ok] 删除分支 {pid}:{name}")
+            except Exception as exc:  # noqa: BLE001
+                # 默认分支删不掉是 GitLab 的保护，不算残留
+                self.ledger.note(f"[跳过] 分支 {pid}:{name}: {exc}")
 
         for pid in self.ledger.projects:
             try:
@@ -122,6 +245,27 @@ class DataFactory:
             except Exception as exc:  # noqa: BLE001
                 self.ledger.note(f"[残留] 群组 {gid}: {exc}")
 
+        for sid in self.ledger.snippets:
+            try:
+                self.gl.client.delete(f"/snippets/{sid}", expect=(200, 202, 204, 404))
+                self.ledger.note(f"[ok] 删除片段 {sid}")
+            except Exception as exc:  # noqa: BLE001
+                self.ledger.note(f"[残留] 片段 {sid}: {exc}")
+
+        for uid in self.ledger.users:
+            try:
+                self.gl.client.delete(f"/users/{uid}", expect=(200, 202, 204, 404))
+                self.ledger.note(f"[ok] 删除用户 {uid}")
+            except Exception as exc:  # noqa: BLE001
+                self.ledger.note(f"[残留] 用户 {uid}: {exc}")
+
         self.ledger.projects.clear()
         self.ledger.groups.clear()
         self.ledger.issues.clear()
+        self.ledger.labels.clear()
+        self.ledger.milestones.clear()
+        self.ledger.notes.clear()
+        self.ledger.branches.clear()
+        self.ledger.tags.clear()
+        self.ledger.snippets.clear()
+        self.ledger.users.clear()

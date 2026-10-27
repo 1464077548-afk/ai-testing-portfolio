@@ -39,6 +39,7 @@ def test_projects_list_latency(gl, settings, perf_thresholds, request):
         _sampler(gl.client, "/projects", {"per_page": 20}),
         concurrency=perf_thresholds["concurrency"],
         samples=perf_thresholds["samples"],
+        warmup=2,   # 冷启动的两三个请求会拉高 P95，不计入
     )
     # 挂到 item 上，conftest 的失败钩子会把它贴进报告
     request.node._perf_result = result
@@ -70,6 +71,7 @@ def test_project_detail_latency(gl, a_project, perf_thresholds, request):
         _sampler(gl.client, f"/projects/{a_project.id}"),
         concurrency=max(2, perf_thresholds["concurrency"] // 2),
         samples=max(20, perf_thresholds["samples"] // 2),
+        warmup=1,
     )
     request.node._perf_result = result
     passed, reasons = verdict(

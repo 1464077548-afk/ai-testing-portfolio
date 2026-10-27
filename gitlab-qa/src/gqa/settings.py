@@ -31,6 +31,16 @@ class Settings:
     perf_samples: int
     perf_p95_ms: int
     perf_error_rate: float
+    # 吞吐下限（req/s）：低于它说明"能跑但跑不动"，通常是连接池或慢查询
+    perf_min_rps: float = 1.0
+    # 抖动上限 = P99 / P50。均值达标但抖动大 = 用户体验时快时慢，
+    # 只看 P95 会漏掉这一类问题
+    perf_max_jitter: float = 6.0
+    # 环境体检预算（单线程基线 P50 上限，ms）。0 = 取 P95 阈值的一半。
+    # 基线超预算说明环境本身已经退化，这时候测出来的延迟没有意义。
+    # 默认值取 500：健康实例上「单线程拉 20 条项目」通常几十到两百毫秒，
+    # 500 已经留足余量；超过它基本可以断定是环境（内存/CPU/磁盘）在拖后腿。
+    perf_env_p50_ms: int = 500
     keep_failed_artifacts: bool = True
     resource_prefix: str = field(default="")
     # 第二个身份（普通用户 / 只读 Token）。越权类断言必须有它才成立：
@@ -83,6 +93,7 @@ class Settings:
             perf_samples=int(os.getenv("PERF_SAMPLES", "60")),
             perf_p95_ms=int(os.getenv("PERF_P95_MS", "1500")),
             perf_error_rate=float(os.getenv("PERF_ERROR_RATE", "0.02")),
+            perf_env_p50_ms=int(os.getenv("PERF_ENV_P50_MS", "500")),
             resource_prefix=os.getenv("RESOURCE_PREFIX", "qa-auto"),
             member_token=os.getenv("GITLAB_MEMBER_TOKEN", ""),
             cleanup_retention_days=int(os.getenv("CLEANUP_RETENTION_DAYS", "7")),
@@ -98,5 +109,6 @@ class Settings:
         return (
             f"env={self.env}  url={self.base_url}  token={shown}  "
             f"timeout={self.timeout}s  perf: {self.perf_concurrency}并发/"
-            f"{self.perf_samples}样本/P95<{self.perf_p95_ms}ms"
+            f"{self.perf_samples}样本/P95<{self.perf_p95_ms}ms/"
+            f">={self.perf_min_rps}rps"
         )

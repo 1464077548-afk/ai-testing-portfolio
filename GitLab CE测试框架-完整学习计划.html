@@ -377,7 +377,8 @@ tbody tr:nth-child(even){background:#fbfcfd}
   <h2><span class="idx"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg></span>这份计划怎么用</h2>
   <p class="lead">
     计划不是从零写框架，而是<strong>在你已经建好的 <code>gitlab-qa</code> 上加厚</strong>。
-    现有基线：<b>88 条用例、7 个分层、10 个套件、12 个 marker</b>、CI 双跑。
+    现有基线：<b>227 条用例、7 个分层、10 个套件、12 个 marker</b>、CI 双跑，
+    <b>接口覆盖率 86/86 = 100%</b>（对真实 GitLab CE 19.0.1 实测）。
     W7 安全层与 W8 回归治理层已落地——后者是本轮新建的，它补的是最容易被跳过的一环：
     <strong>一轮跑绿说明不了什么，能重复 N 轮都绿才叫可信</strong>。
   </p>
@@ -394,21 +395,75 @@ tbody tr:nth-child(even){background:#fbfcfd}
     <table>
       <thead><tr><th style="width:88px">分层</th><th style="width:60px">用例</th><th>职责</th><th style="width:130px">什么时候跑</th></tr></thead>
       <tbody>
-        <tr><td><code>unit</code></td><td>17</td><td>框架自检，不联网——框架自己也得有测试</td><td>每次改动</td></tr>
-        <tr><td><code>smoke</code></td><td>4</td><td>环境活着 + 核心只读接口</td><td>PR 门禁</td></tr>
-        <tr><td><code>api</code></td><td>22</td><td>鉴权 / CRUD / 契约 / 分页</td><td>PR 门禁</td></tr>
-        <tr><td><code>ui</code></td><td>3</td><td>Playwright 关键路径</td><td>合并前</td></tr>
-        <tr><td><code>e2e</code></td><td>1</td><td>API 造数据 → UI 验收</td><td>合并前</td></tr>
-        <tr><td><code>perf</code></td><td>3</td><td>并发采样 + P95 门禁</td><td>夜间</td></tr>
-        <tr><td><code>security</code></td><td><b style="color:var(--ok)">32</b></td><td>越权 6 / 注入转义 12 / 泄露 8 / 暴露面 6</td><td>夜间 + 发版前</td></tr>
+        <tr><td><code>unit</code></td><td>18</td><td>框架自检，不联网——框架自己也得有测试</td><td>每次改动</td></tr>
+        <tr><td><code>smoke</code></td><td>16</td><td>环境活着 + 核心只读接口 + 无效凭据必被拒</td><td>PR 门禁</td></tr>
+        <tr><td><code>api</code></td><td><b>109</b></td><td>鉴权 / CRUD / 契约 / 分页 / 错误语义 / 权限边界</td><td>PR 门禁</td></tr>
+        <tr><td><code>ui</code></td><td>12</td><td>Playwright 关键路径（按 GitLab 19 真实 DOM 重写）</td><td>合并前</td></tr>
+        <tr><td><code>e2e</code></td><td>4</td><td>API 造数据 → UI 验收，双向可见性</td><td>合并前</td></tr>
+        <tr><td><code>perf</code></td><td>9</td><td>并发采样 + P95 门禁 + 吞吐/抖动比</td><td>夜间</td></tr>
+        <tr><td><code>security</code></td><td><b style="color:var(--ok)">59</b></td><td>越权 6 / 注入转义 12 / 泄露 8 / 暴露面 6 / 会话·响应头·批量赋值·限流·数据边界 27</td><td>夜间 + 发版前</td></tr>
       </tbody>
     </table>
     <p style="font-size:12.5px;color:var(--text-3);margin-top:9px">
-      合计 82 条用例函数（参数化展开后 88 项）。实测记录：<code>--suite security</code> 32 passed / 0 skipped；
-      全量 85 passed / 1 skipped，两条性能用例在 4 个 worker 并行时 P95 冲到 3s+ 超阈值，
-      单独跑 <code>--suite perf</code> 3 passed——这正是"性能不进 PR 门禁"的现场证据。<br>
-      靶机全量（<code>--mock</code>）80 passed / 8 skipped：8 条 skip 全是"缺第二身份"，
-      既不算失败也不算通过——<b>这正是 W8 要解决的"skip 伪装成稳定"</b>。
+      合计 <b>227</b> 条。对真实实例（GitLab CE 19.0.1）实测：
+      <code>--suite regression</code> <b>145 passed / 0 failed / 2 skipped</b>；
+      接口覆盖率 <b>86/86 = 100%</b>——分母是 <code>src/gqa/api/catalog.py</code>
+      里显式登记的端点清单，不是拍脑袋算出来的。<br>
+      两条 skip 都有明确原因（实例版本接口需要认证；该版本关闭议题不产生 system note），
+      <b>既不算失败也不算通过</b>——这正是 W8 要解决的"skip 伪装成稳定"。
+    </p>
+  </div>
+
+  <div class="note warn">
+    <b>接口覆盖率 100% 是怎么来的，以及它差点骗了我</b>
+    <p style="margin:6px 0 8px">
+      覆盖率需要一个<b>双方都认可的清单</b>做分母。本框架把它写成代码——
+      <code>src/gqa/api/catalog.py</code> 显式登记 86 个端点，
+      运行时由 <code>coverage.py</code> 统计真正被调用过多少。
+      新增接口先登记再写用例，"该测的测了没有"在评审时是一张表，不是一场争论。
+    </p>
+    <p style="margin:0 0 8px">
+      但把数字做到 100% 的过程里，<b>14 条用例先红了</b>，而且红法各不相同——
+      逐条对真实实例探测后，发现只有一类是我方缺陷，其余全是"用例照着旧版本写"：
+    </p>
+    <table style="margin:6px 0 8px">
+      <thead><tr><th style="width:110px">现象</th><th style="width:96px">归属</th><th>真实原因与处理</th></tr></thead>
+      <tbody>
+        <tr><td><code>description: None is not of type 'string'</code></td>
+            <td><b style="color:var(--risk)">我方缺陷</b></td>
+            <td>契约把可选文本字段写成了必为 string，而 GitLab 未填时返回 <code>null</code>。
+                契约过严会把"没填描述"报成"契约违约"——红了一片却全是假红</td></tr>
+        <tr><td>评论顺序 <code>[4, 3]</code></td>
+            <td>判据写错</td>
+            <td>19 的评论列表默认<b>倒序</b>。真不变式是"单调且两次查询一致"，
+                不是"必须升序"——写死升序得到一条永远红的用例</td></tr>
+        <tr><td>删完群组/用户仍 200</td>
+            <td>版本语义</td>
+            <td>删除是<b>延迟/两阶段</b>：群组先改名带 <code>deletion_scheduled</code>，
+                用户先置 <code>blocked</code>，物理清除由后台完成（实测 60s 仍未消失）。
+                断言应认"已标记/已停用"，而非立刻 404</td></tr>
+        <tr><td><code>POST /groups/{id}/subgroups</code> 404</td>
+            <td>路由已撤</td>
+            <td>19 起写入口改成 <code>POST /groups</code> + <code>parent_id</code>；
+                <code>POST /groups/{id}/projects</code> 同理改成 <code>POST /projects</code> + <code>namespace_id</code>。
+                <b>读路径没变</b>——读写入口不一致是这次最贵的坑</td></tr>
+        <tr><td><code>/api/v4/admin/*</code> 整段 404</td>
+            <td>版本差异</td>
+            <td>403/401 语义改用<b>第二身份</b>碰无权资源来判定，并先跑对照组证明 Token 有效</td></tr>
+        <tr><td>创建用户 400</td>
+            <td>密码策略</td>
+            <td>固定口令被判"常见词组合"。改为每次随机生成——顺带避免口令进仓库</td></tr>
+        <tr><td>改自己的成员角色 404</td>
+            <td>测错对象</td>
+            <td>Owner 不能给自己降级。成员语义只有在<b>别人</b>身上才成立</td></tr>
+      </tbody>
+    </table>
+    <p style="margin:0">
+      这 14 条里真正属于"被测系统有问题"的<b>一条都没有</b>。
+      所以覆盖率数字之外，更要紧的一条工程经验是：
+      <b>用例红了先分清是"产品坏了"还是"用例旧了"，否则你会拿着假红去提 bug。</b>
+      已撤销的路由在目录里保留 <code>removed_in="19"</code> 并注明替代入口——
+      不计入分母（否则覆盖率被永久压死），但信息不丢。
     </p>
   </div>
 
@@ -419,7 +474,7 @@ tbody tr:nth-child(even){background:#fbfcfd}
     <div class="stage t"><div class="w">W3–W4</div><div class="t">API 测试</div><div class="d">客户端、鉴权状态机、契约三层、数据依赖</div></div>
     <div class="stage p"><div class="w">W5</div><div class="t">UI 测试</div><div class="d">POM、通道回退、trace 留证、断言有效性</div></div>
     <div class="stage n"><div class="w">W6</div><div class="t">性能</div><div class="d">并发采样、P95 门禁、证明门禁有效</div></div>
-    <div class="stage r"><div class="w">W7</div><div class="t">安全 · 已建成</div><div class="d">越权 6 / 注入转义 12 / 泄露 8 / 暴露面 6</div></div>
+    <div class="stage r"><div class="w">W7</div><div class="t">安全 · 已建成</div><div class="d">越权 / 注入转义 / 泄露 / 暴露面 / 会话 / 响应头 / 限流 / 数据边界</div></div>
     <div class="stage o"><div class="w">W8</div><div class="t">回归治理 · 已建成</div><div class="d">四类稳定性判定、隔离区收费制、重试上报</div></div>
     <div class="stage"><div class="w">W9</div><div class="t">CI/CD</div><div class="d">双平台跑、趋势累积、报告发布、门禁阻断</div></div>
     <div class="stage"><div class="w">W10</div><div class="t">面试转化</div><div class="d">把工程经历讲成能力证据</div></div>
@@ -1121,9 +1176,35 @@ def project(api):
         <b>别盲信 xdist</b>，用数据决定 <code>workers</code>——套件定义里每个套件单独配了 worker 数就是这个原因。
       </div>
 
+      <div class="note risk">
+        <b>性能门禁的第二道门：先给环境量体温</b>
+        <p style="margin:0 0 6px">
+          实测踩过一次：P95 连续 5 轮报 2.9~4.2s 超阈值，<b>5/5 全部越界且非常稳定</b>——
+          稳定的失败通常不是噪声，是环境。查下来根因是
+          <code>gitlab-ce</code> 容器 <b>内存 5.09GiB / 6GiB = 84.8%</b>，
+          逼近上限后 GC/swap 压力把延迟整体抬了约 5 倍，而 CPU 只有 8.34%。
+          <b>接口一行没改，全红的锅在环境。</b>
+        </p>
+        <p style="margin:0 0 6px">
+          于是加了一道前置体检（<code>tests/perf/conftest.py::perf_env_guard</code>）：
+          先单线程量 12 次基线 P50，超过 <code>PERF_ENV_P50_MS</code>（默认 500ms）
+          就 <b>skip 并写明原因</b>，而不是报红。
+          理由和"缺第二身份就 skip"完全一致——
+          <b>环境退化时稳定误报，最终结局只有一个：所有人学会无视红灯。</b>
+          skip 也不是 pass，它说的是"这台机器现在测不出可信结论"。
+        </p>
+        <p style="margin:0">
+          排查顺序建议：<code>docker stats</code> 看容器内存/CPU →
+          内存逼近上限就调大 <code>mem_limit</code>（GitLab CE 建议 ≥8GiB）→
+          再跑性能套件。别急着调阈值——把阈值调大只能让红灯变绿，
+          不能让系统变快。
+        </p>
+      </div>
+
       <div class="chk-group" data-group="w4">
         <div class="chk-hd"><span>阶段四验收</span><em></em></div>
         <label class="check"><input type="checkbox"><span>能说出为什么用 P95 而不是平均值</span></label>
+        <label class="check"><input type="checkbox"><span>能说出性能门禁为什么要先体检环境</span></label>
         <label class="check"><input type="checkbox"><span>人为注入慢接口，性能门禁确实失败（证明其有效）</span></label>
         <label class="check"><input type="checkbox"><span>能解释为什么性能不放在 PR 门禁里</span></label>
         <label class="check"><input type="checkbox"><span>性能结果在 Allure 里能看到趋势变化</span></label>
@@ -1134,7 +1215,7 @@ def project(api):
 
 <!-- ============ 阶段五 安全 ============ -->
 <section id="s5">
-  <h2><span class="idx">5</span>安全测试 · 把一次性扫描做成可回归资产 <span class="tag core">已落地 · 32 条</span></h2>
+  <h2><span class="idx">5</span>安全测试 · 把一次性扫描做成可回归资产 <span class="tag core">已落地 · 59 条</span></h2>
   <p class="lead">
     <code>tests/security/</code> 已建成，覆盖<strong>越权 / 注入转义 / 信息泄露 / 暴露面</strong>四类，
     独立成套件并接进 CI 夜间 job。它是面试时最能拉开差距的一层——

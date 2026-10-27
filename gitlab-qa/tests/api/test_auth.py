@@ -18,7 +18,7 @@ pytestmark = [pytest.mark.api, pytest.mark.regression]
 
 @allure.epic("GitLab API")
 @allure.feature("鉴权")
-@allure.story("有效 Token 可识别身份")
+@allure.story("有效 Token 可识别身份,返回当前用户信息")
 @allure.severity(allure.severity_level.BLOCKER)
 @pytest.mark.requires_token
 def test_valid_token_identifies_user(gl):

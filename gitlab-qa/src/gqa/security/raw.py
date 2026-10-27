@@ -40,17 +40,22 @@ class RawResponse:
         return [m for m in markers if m in self.body]
 
 
-def raw_get(
+def raw_request(
     base_url: str,
+    method: str,
     path: str,
     headers: dict[str, str] | None = None,
     timeout: float = 10.0,
     max_bytes: int = 20000,
 ) -> RawResponse:
-    """发一个不做路径归一化的 GET。
+    """发一个不做路径归一化、也不做方法白名单的请求。
 
     path 必须是「原样上线」的字符串，调用方负责不要提前编码——
     传 `%2e%2e%2f` 就发 `%2e%2e%2f`，传 `../` 就发 `../`。
+
+    method 可任意（TRACE / TRACK 这类非常规方法也要能发得出去）：
+    客户端库普遍把方法限制在常见几个，测不到「服务端是否放行危险方法」，
+    而这一项恰恰是很多加固清单里的第一条。
     """
     u = urlparse(base_url)
     if not u.hostname:
@@ -65,7 +70,7 @@ def raw_get(
 
     try:
         # skip_accept_encoding 让我们拿到未压缩的正文，便于直接断言
-        conn.putrequest("GET", path, skip_accept_encoding=True)
+        conn.putrequest(method.upper(), path, skip_accept_encoding=True)
         conn.putheader("User-Agent", "gitlab-qa-security/0.1")
         conn.putheader("Connection", "close")
         for key, value in (headers or {}).items():
@@ -78,3 +83,15 @@ def raw_get(
         return RawResponse(status=resp.status, headers=hdrs, body=body, sent_path=path)
     finally:
         conn.close()
+
+
+def raw_get(
+    base_url: str,
+    path: str,
+    headers: dict[str, str] | None = None,
+    timeout: float = 10.0,
+    max_bytes: int = 20000,
+) -> RawResponse:
+    """raw_request 的 GET 便捷封装，行为与之前保持一致。"""
+    return raw_request(base_url, "GET", path, headers=headers,
+                       timeout=timeout, max_bytes=max_bytes)

@@ -17,6 +17,8 @@ from urllib.parse import urlencode
 
 import requests
 
+from gqa.api.coverage import record_call
+
 
 @dataclass
 class GitLabError(Exception):
@@ -109,6 +111,13 @@ class GitLabClient:
         expect: int | tuple[int, ...] | None = None,
     ) -> Response:
         url = path if path.startswith("http") else f"{self.api_url}/{path.lstrip('/')}"
+
+        # 覆盖率埋点。放在重试循环外：重试是同一条端点的多次尝试，
+        # 算多次调用会把「某个接口很慢」伪装成「覆盖得很好」。
+        try:
+            record_call(method.upper(), path)
+        except Exception:  # noqa: BLE001  统计不该让请求失败
+            pass
 
         for attempt in range(self.retries + 1):
             started = time.perf_counter()

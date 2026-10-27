@@ -16,7 +16,7 @@
 
 | 目录 | 定位 | 关键技术 | 状态 |
 |---|---|---|---|
-| [`gitlab-qa/`](gitlab-qa/) | **主工程**：面向真实 GitLab CE 的企业级测试框架 | pytest · requests · Playwright · Allure · 双平台 CI | 7 层、82+ 用例 |
+| [`gitlab-qa/`](gitlab-qa/) | **主工程**：面向真实 GitLab CE 的企业级测试框架 | pytest · requests · Playwright · Allure · 双平台 CI | 7 层、227 条用例 |
 | [`gitlab-ce/`](gitlab-ce/) | 被测靶场：一条命令部署 GitLab CE | Docker · PowerShell 自动化 | 8 阶段一键部署 |
 | [`api-lab/`](api-lab/) | 接口测试基本功练手：分页/契约/鉴权/flaky | pytest · 契约测试 · 内建伪服务 | 可离线运行 |
 | [`rag-eval/`](rag-eval/) | RAG 评测：AI 应用怎么测 | 检索/生成指标 · 回归基线 | 实验性 |
@@ -29,7 +29,10 @@
 
 ```bash
 cd gitlab-qa
-pip install -e ".[dev]"
+# 依赖装在独立环境里，别污染全局解释器
+conda create -n gitlab-qa python=3.11 -y && conda activate gitlab-qa
+python -m pip install -e ".[dev]"
+python -m playwright install chromium   # 有 Edge/Chrome 可跳过，会自动回退
 python tools/doctor.py          # 环境自检：能不能连上实例、依赖齐不齐
 python tools/run.py --suite smoke
 ```
@@ -39,6 +42,15 @@ python tools/run.py --suite smoke
 ```bash
 python tools/run.py --suite all --mock
 ```
+
+## 两个环境坑（实测踩过，都写进代码注释了）
+
+- **清理动作被安全策略掐断进程**：部分企业终端 / DLP 会拦截批量删除，
+  表现是"跑到 100% 却没有汇总行、退出码 1"——看着像用例全崩，实际是收尾清理被拦。
+  用 `python tools/run.py --suite all --keep-results`（只追加不清理）即可绕开。
+- **覆盖率分片必须按批次隔离**：并行跑时每个 worker 各写一份分片、主进程合并。
+  早期版本会把**历史残留**分片一起并进来：覆盖率虚高，收尾还要删几十个旧文件，
+  正好触发上一条。现在分片带批次号，只并本轮。
 
 ## 这个工程想证明什么
 

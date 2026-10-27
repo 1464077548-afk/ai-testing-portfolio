@@ -10,6 +10,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 from pathlib import Path
 
@@ -17,6 +18,7 @@ import pytest
 
 from gqa.allure_meta import write_properties
 from gqa.api.client import GitLabClient
+from gqa.api.coverage import current as current_coverage
 from gqa.api.resources import GitLab
 from gqa.data.factory import DataFactory
 from gqa.flake.quarantine import Quarantine
@@ -28,6 +30,7 @@ from gqa.settings import Settings
 PROJECT_ROOT = Path(__file__).resolve().parents[0]
 ALLURE_DIR = PROJECT_ROOT / "allure-results"
 FLAKE_DIR = PROJECT_ROOT / "artifacts" / "flake"
+COVERAGE_DIR = PROJECT_ROOT / "artifacts" / "coverage"
 
 # 本轮所有「重试过才通过」的记录。session 结束统一落盘，
 # 让重试这件事可审计——悄悄重试等于把抖动藏起来。
@@ -49,6 +52,8 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     g.addoption("--perf-concurrency", type=int, default=None)
     g.addoption("--perf-samples", type=int, default=None)
     g.addoption("--perf-p95", type=int, default=None)
+    g.addoption("--perf-min-rps", type=float, default=None)
+    g.addoption("--perf-jitter", type=float, default=None)
     g.addoption("--include-quarantine", action="store_true",
                 help="连隔离区里的用例一起跑（验收修复是否真的生效时用）")
 
@@ -111,6 +116,17 @@ def pytest_configure(config: pytest.Config) -> None:
     # 中文会变成乱码。走 write_properties 转成 \uXXXX 转义。
     write_properties(outdir / "environment.properties", props)
 
+    # 给本轮覆盖率分片打批次号。xdist 的 worker 是 configure 之后才拉起的，
+    # 会继承这里设的环境变量。
+    #
+    # 没有批次号时，主进程结束时会把**历史残留**的分片一起并进来：
+    # 一来覆盖率虚高（上一轮打过的端点算进了这一轮），
+    # 二来会在收尾时一口气删掉几十个旧文件——企业 DLP / 沙箱的批量删除
+    # 守卫会直接掐掉进程，表现是"跑到 100% 却没有汇总行、退出码 1"，
+    # 看着像用例失败，实际是清理动作被拦。批次号把这两个问题一起解决。
+    if not hasattr(config, "workerinput"):
+        os.environ.setdefault("GQA_COVERAGE_RUN", time.strftime("%Y%m%d-%H%M%S"))
+
 
 # ==========================================================================
 # 收集期守卫
@@ -161,6 +177,10 @@ def settings(request: pytest.FixtureRequest) -> Settings:
         s.perf_samples = request.config.getoption("--perf-samples")
     if request.config.getoption("--perf-p95"):
         s.perf_p95_ms = request.config.getoption("--perf-p95")
+    if request.config.getoption("--perf-min-rps"):
+        s.perf_min_rps = request.config.getoption("--perf-min-rps")
+    if request.config.getoption("--perf-jitter"):
+        s.perf_max_jitter = request.config.getoption("--perf-jitter")
     return s
 
 
@@ -334,12 +354,61 @@ def pytest_runtest_makereport(item: pytest.Item, call):
         _capture_failure_evidence(item)
 
 
+def _write_coverage() -> None:
+    """落盘接口覆盖率。
+
+    并行时每个 worker 各写一份分片，主进程汇总后再出总表。
+    少了汇总这一步，-n 4 跑出来的覆盖率会只有真实值的四分之一左右，
+    而且每次都不一样——度量一旦不可信，就没人会拿它做决策。
+    """
+    import os
+
+    cov = current_coverage()
+    COVERAGE_DIR.mkdir(parents=True, exist_ok=True)
+
+    # 批次号：只并、只删**本轮**的分片（见 pytest_configure 里的注释）
+    run_id = os.getenv("GQA_COVERAGE_RUN", "adhoc")
+    worker = os.getenv("PYTEST_XDIST_WORKER")
+    if worker:
+        (COVERAGE_DIR / f"api_coverage-{run_id}-{worker}.json").write_text(
+            json.dumps(cov.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+        return
+
+    shards = sorted(COVERAGE_DIR.glob(f"api_coverage-{run_id}-*.json"))
+    merged = 0
+    for part in shards:
+        try:
+            data = json.loads(part.read_text(encoding="utf-8"))
+            cov.merge_hits(data.get("covered_endpoints", {}),
+                           data.get("out_of_catalog", {}))
+            merged += 1
+        except (OSError, ValueError):
+            continue
+        try:
+            part.unlink()
+        except (OSError, SystemExit):
+            # 被 DLP / 沙箱的批量删除守卫拦下时抛的是 SystemExit，
+            # 不是 OSError。分片留着只占几 KB，绝不会因此吞掉整轮结果。
+            pass
+    if shards:
+        print(f"[coverage] 合并 {merged}/{len(shards)} 个 worker 分片（批次 {run_id}）")
+
+    (COVERAGE_DIR / "api_coverage.json").write_text(
+        json.dumps(cov.to_dict(), ensure_ascii=False, indent=2), encoding="utf-8")
+    (COVERAGE_DIR / "api_coverage.md").write_text(cov.markdown(), encoding="utf-8")
+    for line in cov.summary_lines():
+        print(f"[coverage] {line}")
+    print(f"[coverage] 明细：{COVERAGE_DIR / 'api_coverage.md'}")
+
+
 def pytest_sessionfinish(session: pytest.Session, exitstatus) -> None:
     """把本轮的重试记录追加到 artifacts/flake/reruns.jsonl。
 
     用追加而不是覆盖：抖动是趋势问题，单次记录看不出
     "这条用例本周已经靠重试混过去 6 次了"。
     """
+    _write_coverage()
+
     if not _RERUNS:
         return
     FLAKE_DIR.mkdir(parents=True, exist_ok=True)

@@ -21,7 +21,7 @@ pytestmark = [pytest.mark.ui, pytest.mark.smoke]
 @allure.story("登录页可打开")
 @allure.severity(allure.severity_level.BLOCKER)
 def test_login_page_renders(page, settings, request):
-    ui = request.getfixturevalue("ui_session")
+    ui = request.getfixturevalue("ui_session")  #动态获取另一个 fixture 
     login = LoginPage(page, settings.base_url)
 
     with allure.step("打开登录页"):

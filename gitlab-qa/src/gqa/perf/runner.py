@@ -123,12 +123,27 @@ def run_load(
     fn,
     concurrency: int = 8,
     samples: int = 60,
+    warmup: int = 0,
 ) -> PerfResult:
     """跑一轮固定样本数的并发负载。
 
     fn 的签名是 () -> Sample，由调用方决定这一次「请求」做什么。
+
+    warmup：先跑这么多次且**不计入统计**。
+    容器里的 GitLab 首次访问要加载路由、编译模板、填缓存，头几个请求
+    比稳态慢好几倍。把它们算进 P95，门禁就会卡在"冷启动"上：
+    单跑一次红一次，而稳态其实达标——这种红没人查得下去，
+    最后的结局是所有人都不看性能报告。
+    预热单独跑、不计入样本，测的才是稳态性能。
     """
     result = PerfResult(name=name, concurrency=concurrency)
+
+    for _ in range(max(0, warmup)):
+        try:
+            fn()
+        except Exception:  # noqa: BLE001  预热失败不影响正式采样
+            pass
+
     started = time.perf_counter()
 
     with ThreadPoolExecutor(max_workers=concurrency) as pool:
