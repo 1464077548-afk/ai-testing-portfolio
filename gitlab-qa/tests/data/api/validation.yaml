@@ -1,0 +1,131 @@
+# 创建接口的字段校验矩阵（实测 GitLab 19.0.1）
+#
+# 期望值全部来自实测，不是按"应该 400"推的。写矩阵时最容易犯的错是把
+# 「我认为服务端会拒绝」当成期望——结果要么写出一条永远红的用例，
+# 要么更糟：把 expect 写成 [400, 200] 来"兼容两种情况"，那就等于没断言。
+#
+# expect_msg 只做子串匹配：GitLab 的错误体有时是字符串（"title is missing"），
+# 有时是对象（{'title': ["can't be blank"]}），统一转字符串后再比对。
+# 它的作用是防止「400 了，但 400 的原因完全无关」——比如把路径写错也会 400。
+
+cases:
+  # -------- 项目 --------
+  - id: project-without-name
+    desc: 创建项目必须带 name
+    method: POST
+    path: /projects
+    body: {}
+    expect: [400]
+    expect_msg: missing
+
+  - id: project-empty-name
+    desc: 项目名空串应被拒
+    method: POST
+    path: /projects
+    body: {name: ""}
+    expect: [400]
+    expect_msg: blank
+
+  - id: project-bad-visibility
+    desc: visibility 取枚举外的值应被拒
+    method: POST
+    path: /projects
+    body: {name: "{uniq}-vis", visibility: bogus}
+    expect: [400]
+    expect_msg: visibility
+
+  # -------- 议题 --------
+  - id: issue-without-title
+    desc: 创建议题必须带 title
+    method: POST
+    path: /projects/{pid}/issues
+    body: {}
+    expect: [400]
+    expect_msg: title
+
+  - id: issue-empty-title
+    desc: 议题标题空串应被拒
+    method: POST
+    path: /projects/{pid}/issues
+    body: {title: ""}
+    expect: [400]
+    expect_msg: blank
+
+  # -------- 标签 --------
+  - id: label-without-name
+    desc: 创建标签必须带 name
+    method: POST
+    path: /projects/{pid}/labels
+    body: {color: "#0033cc"}
+    expect: [400]
+    expect_msg: name
+
+  - id: label-without-color
+    desc: 创建标签必须带 color
+    method: POST
+    path: /projects/{pid}/labels
+    body: {name: "{uniq}-lbl"}
+    expect: [400]
+    expect_msg: color
+
+  - id: label-bad-color
+    desc: color 不是合法色值应被拒
+    method: POST
+    path: /projects/{pid}/labels
+    body: {name: "{uniq}-lbl", color: "not-a-color"}
+    expect: [400]
+    expect_msg: color
+
+  - id: label-color-without-hash
+    desc: color 缺 # 前缀应被拒（必须是 #RRGGBB）
+    method: POST
+    path: /projects/{pid}/labels
+    body: {name: "{uniq}-lbl", color: "0033cc"}
+    expect: [400]
+    expect_msg: color
+
+  # -------- 里程碑 --------
+  - id: milestone-without-title
+    desc: 创建里程碑必须带 title
+    method: POST
+    path: /projects/{pid}/milestones
+    body: {}
+    expect: [400]
+    expect_msg: title
+
+  # -------- 代码片段 --------
+  - id: snippet-without-title
+    desc: 创建片段必须带 title
+    method: POST
+    path: /snippets
+    body: {file_name: "qa.txt", content: "x"}
+    expect: [400]
+    expect_msg: title
+
+  - id: snippet-without-file-name
+    desc: 创建片段必须带 file_name
+    method: POST
+    path: /snippets
+    body: {title: "{uniq}-snip", content: "x"}
+    expect: [400]
+    expect_msg: file_name
+
+  - id: snippet-without-content
+    desc: content 与 files 必须提供其一
+    method: POST
+    path: /snippets
+    body: {title: "{uniq}-snip", file_name: "qa.txt"}
+    expect: [400]
+    expect_msg: content
+
+  - id: snippet-bad-visibility
+    desc: 片段 visibility 取枚举外的值应被拒
+    method: POST
+    path: /snippets
+    body:
+      title: "{uniq}-snip"
+      file_name: "qa.txt"
+      content: "x"
+      visibility: bogus
+    expect: [400]
+    expect_msg: visibility

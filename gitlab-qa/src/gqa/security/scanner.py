@@ -20,15 +20,61 @@ from typing import Any, Iterator
 # ---------------------------------------------------------------- 载荷库
 # 集中一处，用例只引用不硬编码——加一个新载荷不用改用例
 XSS_PAYLOADS = [
-    "<script>alert(1)</script>",
+    # ==================== 基础经典 Payload ====================
+    # 1. 基础脚本注入（最经典的XSS测试）
+    '<script>alert("xss")</script>',
+    '<script>alert(document.cookie)</script>',  # 窃取Cookie测试
+    # ==================== 事件型 XSS（绕过 script 过滤）====================
+    # 2. 图片标签错误触发（绕过简单script过滤），利用图片加载失败触发onerror事件，绕过禁止<script>标签的简单过滤。
+    '<img src=x onerror=alert("xss")>',
+    '<img src=x onmouseover=alert("xss")>',
+    '<body onload=alert("xss")>',   # 页面加载事件
+    '<div onmouseover=alert("xss")>test</div>',
+    '<input onfocus=alert("xss") autofocus>',
+    '<video src=x onerror=alert("xss")>',
+    '<audio src=x onerror=alert("xss")>',
+    # ==================== 伪协议 XSS====================
+    # 3. JavaScript伪协议（常用于href/src属性注入）伪协议类型 XSS，专门测试链接 / 超链接属性（如<a href="输入内容">）。
+    'javascript:alert("xss")',  
+    'javascript:alert(document.cookie)',
+    'vbscript:msgbox("xss")',
+    'data:text/html;base64,PHNjc==',
+    # ==================== SVG / 特殊标签绕过 ====================
+    # 4. SVG标签加载触发（绕过部分标签黑名单），SVG 标签自带加载事件，绕过常见 HTML 标签过滤规则。
+    '<svg onload=alert("xss")>',
+    '<svg/onload=alert("xss")>',
+    '<iframe onload=alert("xss")></iframe>',# 框架标签注入
+    '<iframe src="javascript:alert(1)"></iframe>',
+            
+    # ==================== 标签闭合绕过（极强绕过能力）====================
+    '"><script>alert("xss")</script>',
+    '"><img src=x onerror=alert("xss")>',
+    '"></div><script>alert("xss")</script>',
+    '"><svg onload=alert("xss")>',
     "\"><img src=x onerror=alert(1)>",
-    "javascript:alert(document.cookie)",
+    '\'><script>alert("xss")</script>',         # 闭合标签绕过
+    # ==================== 编码混淆绕过（大小写/变形）====================
+    '<Script>alert("xss")</Script>',
+    '<sCrIpT>alert("xss")</sCrIpT>',
+    '<IMG SRC=X ONERROR=alert("xss")>',
+
+    # ==================== 无括号绕过（过滤括号时可用）====================
+    '<script>alert`xss`</script>',
+    '<img src=x onerror=alert`xss`>',
+
+    # ==================== 超长字符绕过（部分WAF可绕过）====================
+    '<a href="javascript:alert(1)">click me</a>',
+    '<marquee onstart=alert("xss")>',
+    
+    # ==================== 富文本专用 XSS ====================
+    '<p style="color:red;x:expression(alert(1))">test</p>',
 ]
 
 SQLI_PAYLOADS = [
     "' OR '1'='1",
     "'; DROP TABLE projects; --",
     "1' UNION SELECT 1,version(),3--",
+    "1; SELECT * FROM projects",
 ]
 
 TEMPLATE_PAYLOADS = [
@@ -39,8 +85,11 @@ TEMPLATE_PAYLOADS = [
 
 PATH_TRAVERSAL_PAYLOADS = [
     "../../../../etc/passwd",
+    '....//....//etc/passwd',
     "..%2F..%2F..%2F..%2Fetc%2Fpasswd",
     "%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+    '..\\..\\..\\windows\\system32',
+
 ]
 
 

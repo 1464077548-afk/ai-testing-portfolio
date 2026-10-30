@@ -34,6 +34,9 @@ _delprobe/
 
 # ---- 会话 / 本地工作数据 ----
 .workbuddy/
+.tmp/
+.tmp-*
+gitlab-qa/.tmp/
 
 # ---- Python ----
 __pycache__/

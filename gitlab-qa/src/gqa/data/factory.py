@@ -45,6 +45,13 @@ class ResourceLedger:
         counted = (self.projects, self.groups, self.issues, self.labels,
                    self.milestones, self.notes, self.branches, self.snippets)
         if not any(counted):
+            # cleanup() 会清空上面这些列表，而 conftest 恰恰是在 cleanup()
+            # **之后**才调 report() 贴附件——原来的实现直接返回
+            # "本次会话未创建任何资源"，把整份清理记录吞掉了：
+            # 报告里那一栏永远空白，出问题时看不到哪条没删掉。
+            if self.cleanup_log:
+                return ("本次会话的资源已回收，明细：\n\n"
+                        + "\n".join(self.cleanup_log))
             return "本次会话未创建任何资源"
         lines = [
             f"创建资源：项目 {len(self.projects)} / 群组 {len(self.groups)} / "
@@ -241,7 +248,21 @@ class DataFactory:
         for gid in self.ledger.groups:
             try:
                 self.gl.groups.delete(gid)
-                self.ledger.note(f"[ok] 删除群组 {gid}")
+                # 群组默认走「延迟删除」：DELETE 返回 202 只代表"已标记"，
+                # 回查仍然 200。这里必须回查一次把话说准——否则清理日志写着
+                # [ok] 删除群组，实例上其实还挂着，只是没人去看清单而已。
+                #
+                # 顶层群组不支持 permanently_remove（实测 19.0.1 返回
+                # 400 "only available for subgroups"），只能等
+                # deletion_adjourned_period（本实例 1 天）到期自动清除。
+                # 所以这里记录的是"已排期"，不是"已消失"。
+                after = self.gl.groups.get(gid)
+                if after.status == 200:
+                    path = (after.json_data or {}).get("full_path", "")
+                    self.ledger.note(
+                        f"[延迟删除] 群组 {gid} {path}：已标记待删，保留期内仍可查到")
+                else:
+                    self.ledger.note(f"[ok] 删除群组 {gid}")
             except Exception as exc:  # noqa: BLE001
                 self.ledger.note(f"[残留] 群组 {gid}: {exc}")
 

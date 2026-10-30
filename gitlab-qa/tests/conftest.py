@@ -11,7 +11,30 @@ from __future__ import annotations
 
 import pytest
 
+from gqa.data.case_loader import load_case_file
 from gqa.models import Project
+
+
+def pytest_generate_tests(metafunc: pytest.Metafunc) -> None:
+    """按 `@pytest.mark.cases("xxx.yaml")` 从 YAML 注入参数化用例。
+
+    为什么走钩子而不是在用例里 `parametrize(load(...))`：
+    那样每加一个矩阵文件就要在函数体上改一次装饰器，YAML 就退化成
+    "一个只能被一个用例读的配置文件"。走钩子之后，新增矩阵 = 往
+    tests/data/api/ 里丢一个 YAML + 写一个签名为 `(case)` 的用例函数，
+    矩阵内容和用例逻辑互不干扰。
+
+    加载失败（字段拼错、id 重复、YAML 语法错）在这里直接抛：
+    一个写坏的矩阵文件应该让这轮跑不起来，而不是悄悄少跑几条——
+    少跑的几条在报告上看不出来。
+    """
+    marker = metafunc.definition.get_closest_marker("cases")
+    if marker is None or "case" not in metafunc.fixturenames:
+        return
+
+    file_name = str(marker.args[0])
+    cases = load_case_file(file_name)
+    metafunc.parametrize("case", cases, ids=[c.id for c in cases])
 
 
 @pytest.fixture
@@ -101,3 +124,4 @@ def perf_thresholds(settings):
         # 环境体检预算：0 表示按 P95 阈值的一半算
         "env_p50_ms": settings.perf_env_p50_ms,
     }
+

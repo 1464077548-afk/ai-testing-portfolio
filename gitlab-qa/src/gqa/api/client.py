@@ -46,6 +46,12 @@ class Response:
 
     @property
     def ok(self) -> bool:
+        '''
+            是否成功响应
+            200: OK，GET/PUT/PATCH成功，返回数据
+            201: Create，POST成功，返回新创建资源的 URL
+            204: No Content，DELETE成功，无返回体
+        '''
         return 200 <= self.status < 300
 
     def __getitem__(self, key: str) -> Any:
@@ -74,6 +80,15 @@ class RequestLog:
 
 
 class GitLabClient:
+    '''
+        GitLab REST API 客户端
+        429: Too Many Requests，触发限流，必须遵守 Retry-After 头，否则账号被封
+        500: Internal Server Error，内部服务器错误，重试即可
+        502: Bad Gateway，网关服务器错误，重试即可
+        503: Service Unavailable，服务暂不可用（维护/过载），重试后可恢复
+        504: Gateway Timeout，网关服务器超时，重试即可
+        505: HTTP Version Not Supported，HTTP 版本不支持
+    '''
     RETRY_STATUS = {429, 500, 502, 503, 504}
     IDEMPOTENT = {"GET", "HEAD", "OPTIONS"}
 
@@ -126,6 +141,7 @@ class GitLabClient:
                     method, url, params=params, json=json_body,
                     headers=self._headers(), timeout=self.timeout,
                 )
+           
             except (requests.ConnectionError, requests.Timeout) as exc:
                 if attempt >= self.retries:
                     raise GitLabError(0, f"网络异常：{type(exc).__name__}", method, url)
@@ -211,7 +227,9 @@ class GitLabClient:
         out: list[dict] = []
         page = 1
         query = dict(params or {})
-        query.setdefault("per_page", 100)
+        query.setdefault("per_page", 100)  
+        #setdefault 的语义是：如果 query 里还没有 "per_page" 这个键，就插入并设为 100；如果已经有了，保持原值不动。
+        # 这比 query["per_page"] = 100 好——后者会无条件覆盖调用方显式传入的值。
         while page <= max_pages:
             query["page"] = page
             resp = self.request("GET", path, params=query, expect=200)

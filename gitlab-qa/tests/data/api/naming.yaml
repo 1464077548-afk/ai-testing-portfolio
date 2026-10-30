@@ -1,0 +1,153 @@
+# 名称合法性矩阵：分支名 / 标签名（实测 GitLab 19.0.1）
+#
+# 这类规则是纯业务约束，最适合放进 YAML——规则一变，改这个文件就行，
+# 不用动代码。而且"哪些字符被拒"本身就是需要评审确认的东西，
+# 写在数据里比埋在断言里更容易被人看见。
+#
+# 注意合法命名的用例都带 {uniq}：它们会真的创建成功（201），
+# 名字不唯一就会撞上"已存在"，把 201 变成 400，用例天天红却查不出原因。
+#
+# cleanup 决定创建成功后怎么回收，不写就会在实例上堆垃圾。
+
+cases:
+  # -------- 分支名 --------
+  - id: branch-empty
+    desc: 空分支名应被拒
+    method: POST
+    path: /projects/{pid}/repository/branches
+    params: {branch: "", ref: main}
+    expect: [400]
+    expect_msg: empty
+
+  - id: branch-with-space
+    desc: 分支名不能含空格
+    method: POST
+    path: /projects/{pid}/repository/branches
+    params: {branch: "with space", ref: main}
+    expect: [400]
+
+  - id: branch-double-dash
+    desc: 分支名不能以 -- 开头（会被当成命令行参数）
+    method: POST
+    path: /projects/{pid}/repository/branches
+    params: {branch: "--dash", ref: main}
+    expect: [400]
+
+  - id: branch-double-dot
+    desc: 分支名不能含 ..
+    method: POST
+    path: /projects/{pid}/repository/branches
+    params: {branch: "a..b", ref: main}
+    expect: [400]
+
+  - id: branch-leading-dot
+    desc: 分支名不能以 . 开头
+    method: POST
+    path: /projects/{pid}/repository/branches
+    params: {branch: ".hidden", ref: main}
+    expect: [400]
+
+  - id: branch-trailing-slash
+    desc: 分支名不能以 / 结尾
+    method: POST
+    path: /projects/{pid}/repository/branches
+    params: {branch: "trail/", ref: main}
+    expect: [400]
+
+  - id: branch-leading-dash
+    desc: 分支名不能以 - 开头
+    method: POST
+    path: /projects/{pid}/repository/branches
+    params: {branch: "-start", ref: main}
+    expect: [400]
+
+  - id: branch-full-ref
+    desc: 分支名不能再套一层 refs/heads/
+    method: POST
+    path: /projects/{pid}/repository/branches
+    params: {branch: "refs/heads/x", ref: main}
+    expect: [400]
+
+  - id: branch-backslash
+    desc: 分支名不能含反斜杠
+    method: POST
+    path: /projects/{pid}/repository/branches
+    params: {branch: "a\\b", ref: main}
+    expect: [400]
+
+  - id: branch-ok
+    desc: 普通分支名应创建成功
+    method: POST
+    path: /projects/{pid}/repository/branches
+    params: {branch: "{uniq}-ok", ref: main}
+    expect: [201]
+    cleanup: branch
+
+  - id: branch-nested-slash-ok
+    desc: 分支名允许含 / （feature/x 这种是合法的）
+    method: POST
+    path: /projects/{pid}/repository/branches
+    params: {branch: "{uniq}/feature", ref: main}
+    expect: [201]
+    cleanup: branch
+
+  - id: branch-unicode-ok
+    desc: 分支名允许 Unicode
+    method: POST
+    path: /projects/{pid}/repository/branches
+    params: {branch: "{uniq}-中文", ref: main}
+    expect: [201]
+    cleanup: branch
+
+  # -------- 标签名 --------
+  - id: tag-empty
+    desc: 空标签名应被拒
+    method: POST
+    path: /projects/{pid}/repository/tags
+    body: {tag_name: "", ref: main}
+    expect: [400]
+
+  - id: tag-with-space
+    desc: 标签名不能含空格
+    method: POST
+    path: /projects/{pid}/repository/tags
+    body: {tag_name: "with space", ref: main}
+    expect: [400]
+
+  - id: tag-double-dot
+    desc: 标签名不能是 ..
+    method: POST
+    path: /projects/{pid}/repository/tags
+    body: {tag_name: "..", ref: main}
+    expect: [400]
+
+  - id: tag-leading-dash
+    desc: 标签名不能以 - 开头
+    method: POST
+    path: /projects/{pid}/repository/tags
+    body: {tag_name: "-start", ref: main}
+    expect: [400]
+
+  - id: tag-ok
+    desc: 普通标签名应创建成功
+    method: POST
+    path: /projects/{pid}/repository/tags
+    body: {tag_name: "{uniq}-ok", ref: main}
+    expect: [201]
+    cleanup: tag
+
+  - id: tag-version-ok
+    desc: 版本号形式的标签应创建成功
+    method: POST
+    path: /projects/{pid}/repository/tags
+    body: {tag_name: "v1.0.0-{uniq}", ref: main}
+    expect: [201]
+    cleanup: tag
+
+  - id: tag-slash-ok
+    desc: 标签名允许含 /
+    method: POST
+    path: /projects/{pid}/repository/tags
+    body: {tag_name: "{uniq}/release", ref: main}
+    expect: [201]
+    cleanup: tag

@@ -1,5 +1,9 @@
 # 用 GitLab CI 测 GitLab —— 这套框架跑在它自己的靶子上。
 #
+# ⚠️ 本文件是「gitlab-qa 作为独立仓库」时的参考配置。
+#    monorepo（ai-testing-portfolio）下 GitLab 只读仓库根的 .gitlab-ci.yml，
+#    这里的 job 不会被触发 —— 以根目录那份为准。
+#
 # 三档流水线对应三种决策：
 #   PR       → 只要冒烟，5 分钟内给结论
 #   主干     → 接口 + UI 全量，含写操作

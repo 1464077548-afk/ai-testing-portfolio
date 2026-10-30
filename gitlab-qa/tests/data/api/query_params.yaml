@@ -1,0 +1,177 @@
+# 查询参数边界矩阵（实测 GitLab 19.0.1）
+#
+# 这组用例的价值不在"参数合法时返回 200"，而在把**服务端对边界值的真实态度**
+# 固定下来。实测里有两处明显的不一致，正是值得留证据的地方：
+#   · per_page=0 → 400，但 page=0 → 200       （同为"非正数"，一个拒一个收）
+#   · per_page=-1 → 200 且 X-Per-Page 回落成 20（静默当默认值，不是报错）
+# 这类不一致没法靠"应该怎样"推出来，只能测出来、记下来。将来版本改了，
+# 用例会红，红的原因写在 desc 里，一眼能判断是有意变更还是回归。
+#
+# scope=blobs 实测 400：本实例未开启高级搜索（Elasticsearch），
+# 该 scope 未注册。实例开了高级搜索后这条会红，届时把 expect 改成 [200]。
+
+cases:
+  # -------- 分页 --------
+  - id: per-page-zero-rejected
+    desc: per_page=0 被拒绝（非正数）
+    method: GET
+    path: /projects
+    params: {per_page: 0}
+    expect: [400]
+
+  - id: per-page-negative-accepted
+    desc: per_page=-1 不报错，静默回落到默认页宽（实测 X-Per-Page=20）
+    method: GET
+    path: /projects
+    params: {per_page: -1}
+    expect: [200]
+
+  - id: per-page-non-numeric-rejected
+    desc: per_page 非数字被拒绝
+    method: GET
+    path: /projects
+    params: {per_page: abc}
+    expect: [400]
+
+  - id: per-page-over-cap-normalised
+    desc: per_page 超上限不报错，归一到 100（判据在 X-Per-Page 头，见分页专项用例）
+    method: GET
+    path: /projects
+    params: {per_page: 101}
+    expect: [200]
+
+  - id: page-zero-accepted
+    desc: page=0 被接受（与 per_page=0 的处理不一致，这就是要记下来的事实）
+    method: GET
+    path: /projects
+    params: {page: 0}
+    expect: [200]
+
+  - id: page-negative-accepted
+    desc: page=-1 被接受
+    method: GET
+    path: /projects
+    params: {page: -1}
+    expect: [200]
+
+  - id: page-non-numeric-rejected
+    desc: page 非数字被拒绝
+    method: GET
+    path: /projects
+    params: {page: abc}
+    expect: [400]
+
+  # -------- 排序 --------
+  - id: order-by-created-at-ok
+    desc: 议题支持按创建时间排序
+    method: GET
+    path: /projects/{pid}/issues
+    params: {order_by: created_at, sort: asc}
+    expect: [200]
+
+  - id: order-by-updated-at-ok
+    desc: 议题支持按更新时间排序
+    method: GET
+    path: /projects/{pid}/issues
+    params: {order_by: updated_at, sort: desc}
+    expect: [200]
+
+  - id: order-by-id-rejected
+    desc: 议题不支持按 id 排序（枚举不含 id）
+    method: GET
+    path: /projects/{pid}/issues
+    params: {order_by: id}
+    expect: [400]
+
+  - id: order-by-unknown-rejected
+    desc: 未知 order_by 被拒绝
+    method: GET
+    path: /projects/{pid}/issues
+    params: {order_by: bogus}
+    expect: [400]
+
+  - id: sort-unknown-rejected
+    desc: 未知 sort 被拒绝
+    method: GET
+    path: /projects/{pid}/issues
+    params: {sort: bogus}
+    expect: [400]
+
+  # -------- 过滤 --------
+  - id: state-opened-ok
+    desc: 按 opened 过滤议题
+    method: GET
+    path: /projects/{pid}/issues
+    params: {state: opened}
+    expect: [200]
+
+  - id: state-closed-ok
+    desc: 按 closed 过滤议题
+    method: GET
+    path: /projects/{pid}/issues
+    params: {state: closed}
+    expect: [200]
+
+  - id: state-unknown-rejected
+    desc: 未知 state 被拒绝（不会被当成"查不到"返回空列表）
+    method: GET
+    path: /projects/{pid}/issues
+    params: {state: bogus}
+    expect: [400]
+
+  # -------- 全局搜索 scope --------
+  - id: scope-projects-ok
+    desc: 搜索 scope=projects 可用
+    method: GET
+    path: /search
+    params: {scope: projects, search: a}
+    expect: [200]
+
+  - id: scope-issues-ok
+    desc: 搜索 scope=issues 可用
+    method: GET
+    path: /search
+    params: {scope: issues, search: a}
+    expect: [200]
+
+  - id: scope-merge-requests-ok
+    desc: 搜索 scope=merge_requests 可用
+    method: GET
+    path: /search
+    params: {scope: merge_requests, search: a}
+    expect: [200]
+
+  - id: scope-users-ok
+    desc: 搜索 scope=users 可用
+    method: GET
+    path: /search
+    params: {scope: users, search: a}
+    expect: [200]
+
+  - id: scope-milestones-ok
+    desc: 搜索 scope=milestones 可用
+    method: GET
+    path: /search
+    params: {scope: milestones, search: a}
+    expect: [200]
+
+  - id: scope-blobs-unavailable
+    desc: scope=blobs 在本实例不可用（未开启高级搜索/ES）
+    method: GET
+    path: /search
+    params: {scope: blobs, search: a}
+    expect: [400]
+
+  - id: scope-empty-rejected
+    desc: 空 scope 被拒绝
+    method: GET
+    path: /search
+    params: {scope: "", search: a}
+    expect: [400]
+
+  - id: scope-unknown-rejected
+    desc: 未知 scope 被拒绝
+    method: GET
+    path: /search
+    params: {scope: bogus, search: a}
+    expect: [400]

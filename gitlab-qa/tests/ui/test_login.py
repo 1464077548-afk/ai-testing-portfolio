@@ -21,7 +21,7 @@ pytestmark = [pytest.mark.ui, pytest.mark.smoke]
 @allure.story("登录页可打开")
 @allure.severity(allure.severity_level.BLOCKER)
 def test_login_page_renders(page, settings, request):
-    ui = request.getfixturevalue("ui_session")  #动态获取另一个 fixture 
+    ui = request.getfixturevalue("ui_session")  #动态获取ui_session fixture 
     login = LoginPage(page, settings.base_url)
 
     with allure.step("打开登录页"):
@@ -34,7 +34,6 @@ def test_login_page_renders(page, settings, request):
 
     allure.attach(page.title(), name="页面标题",
                   attachment_type=allure.attachment_type.TEXT)
-
 
 @allure.epic("GitLab UI")
 @allure.feature("登录")
@@ -51,10 +50,10 @@ def test_login_with_wrong_password_fails(page, settings):
 
     with allure.step("用错误密码登录"):
         login.open()
-        login.login(settings.admin_user, "definitely-wrong-password-12345")
+        login.login(settings.admin_user, "wrong-password")
 
     with allure.step("断言仍处于未登录状态"):
-        assert not login.is_logged_in, "错误密码竟然登录成功了"
+        assert not login.is_logged_in, "错误密码竟然登录成功了"                      
 
 
 @allure.epic("GitLab UI")

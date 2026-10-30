@@ -3,7 +3,7 @@ name = "gitlab-qa"
 version = "0.1.0"
 description = "GitLab CE 企业级自动化测试框架：API / UI / 冒烟 / 回归 / 性能"
 requires-python = ">=3.11"
-dependencies = ["requests>=2.31"]
+dependencies = ["requests>=2.31", "pyyaml>=6.0"]
 
 [project.optional-dependencies]
 dev = [
@@ -17,6 +17,7 @@ dev = [
     "faker>=24.0",
     "python-dotenv>=1.0",
     "tenacity>=8.3",
+    "PyYAML",
 ]
 
 [build-system]
@@ -49,6 +50,7 @@ markers = [
     "requires_token: 需要管理员 Token，缺失时 skip 而不是 pass",
     "slow: 耗时用例，仅夜间跑",
     "flaky: 已知不稳定，允许有限重试；重试次数会上报 Allure（不做全局重跑）",
+    "cases(file): 从 tests/data/api/<file> 加载 YAML 用例矩阵，由 pytest_generate_tests 注入",
 ]
 filterwarnings = [
     "ignore::DeprecationWarning:urllib3.*",

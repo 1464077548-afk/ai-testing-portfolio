@@ -42,11 +42,11 @@ class UISession:
         self.artifacts_dir = Path(artifacts_dir)
         self.artifacts_dir.mkdir(parents=True, exist_ok=True)
 
-        self._pw = None
+        self._pw = None   # playwright 实例
         self.browser: Browser | None = None
-        self.channel: str = ""
-        self._contexts: list[BrowserContext] = []
-        self.artifacts: list[FailureArtifact] = []
+        self.channel: str = ""   # 浏览器通道，如 "msedge" / "chrome" / "chromium"
+        self._contexts: list[BrowserContext] = []  # 所有 context 实例
+        self.artifacts: list[FailureArtifact] = []  # 所有失败时留证
 
     # ---------------------------------------------------------------- 生命周期
     def start(self) -> "UISession":

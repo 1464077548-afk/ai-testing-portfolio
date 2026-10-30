@@ -74,6 +74,9 @@ class BasePage:
         )
 
     def exists_any(self, selectors: list[str], timeout: int = 5000) -> bool:
+        '''
+        判断是否至少有一个可见元素匹配指定选择器。   
+        '''
         for sel in selectors:
             try:
                 self.page.locator(sel).first.wait_for(state="visible", timeout=timeout)

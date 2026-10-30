@@ -24,7 +24,6 @@ pytestmark = [pytest.mark.api, pytest.mark.regression]
 def test_valid_token_identifies_user(gl):
     """有效 Token 可识别身份"""
     resp = gl.users.current()
-    print(f"当前用户接口返回信息:{resp}")
     assert resp.status == 200, f"Token 无效：HTTP {resp.status}"
 
     errors = contracts.collect_errors(resp.json_data, contracts.USER)

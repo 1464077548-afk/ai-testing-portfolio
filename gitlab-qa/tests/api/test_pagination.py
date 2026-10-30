@@ -11,6 +11,8 @@ from __future__ import annotations
 import allure
 import pytest
 
+from gqa.api.paging import assert_scan_integrity, scan
+
 pytestmark = [pytest.mark.api, pytest.mark.regression]
 
 
@@ -20,13 +22,26 @@ pytestmark = [pytest.mark.api, pytest.mark.regression]
 @allure.severity(allure.severity_level.CRITICAL)
 @pytest.mark.parametrize("per_page", [1, 5, 20], ids=lambda v: f"per_page={v}")
 def test_per_page_is_respected(anon_client, per_page):
+    """判据是 X-Per-Page 回显，不是「返回条数 <= per_page」。
+
+    后者在数据不足一页时恒真：实例上若只有 3 个项目，请求 per_page=20 返回
+    3 条，服务端把 per_page 整个忽略也照样通过。头里回显的是服务端**实际采纳**
+    的页宽，与数据量无关，才是硬判据。
+    """
     resp = anon_client.client.get("/projects", params={"per_page": per_page},
                                   expect=(200, 401, 403))
     if resp.status != 200:
         pytest.skip(f"匿名无法访问项目列表（HTTP {resp.status}）")
+    print(f"   resp.json_data_len={len(resp.json_data)}")
     assert len(resp.json_data) <= per_page, (
         f"请求 per_page={per_page}，返回 {len(resp.json_data)} 条"
     )
+
+    effective = resp.headers.get("X-Per-Page")
+    if effective is not None:
+        assert int(effective) == per_page, (
+            f"请求 per_page={per_page}，服务端实际采纳 {effective}"
+        )
 
 
 @allure.epic("GitLab API")
@@ -34,11 +49,14 @@ def test_per_page_is_respected(anon_client, per_page):
 @allure.story("per_page 上限")
 @allure.severity(allure.severity_level.NORMAL)
 def test_per_page_over_limit(anon_client):
-    """per_page 超过上限时的行为。
+    """per_page 超过上限时必须归一到 100，判据看 X-Per-Page。
 
-    实测 GitLab 的处理是「截断到 100」而不是报 400。两种做法都说得通，
-    但必须明确：如果返回 200，条数就一定不能超过 100。
+    实测（GitLab 19.0.1）：`per_page=101` 返回 200，`X-Per-Page: 100`，
+    条数按 100 封顶；`per_page=0` 才是 400。
     真正的缺陷是「嘴上接受 101，实际给回第一页的默认条数」。
+
+    这里特意不再用「返回条数 <= 100」当判据：项目总数不到 100 时那条断言
+    恒真，服务端把 per_page 当 1 用也发现不了——本文件原来就是这么写的。
     """
     resp = anon_client.client.get("/projects", params={"per_page": 101},
                                   expect=(200, 400, 401, 403))
@@ -46,10 +64,16 @@ def test_per_page_over_limit(anon_client):
         pytest.skip("匿名无权访问")
     if resp.status == 400:
         return
+
     assert resp.status == 200
-    assert len(resp.json_data) <= 100, (
-        f"per_page=101 被接受，但返回了 {len(resp.json_data)} 条（超过硬上限 100）"
-    )
+    print(f"   resp.json_data_len={len(resp.json_data)}")
+    effective = resp.headers.get("X-Per-Page")
+    assert effective is not None, "缺少 X-Per-Page 头，无法判断服务端实际采纳的页宽"
+    print(f"   effective={effective}")
+    assert int(effective) <= 100, (
+        f"请求 per_page=101，服务端实际采纳 {effective}（超过硬上限 100）")
+    assert len(resp.json_data) <= int(effective), (
+        f"X-Per-Page={effective}，却返回 {len(resp.json_data)} 条")
 
 
 @allure.epic("GitLab API")
@@ -57,30 +81,21 @@ def test_per_page_over_limit(anon_client):
 @allure.story("翻页不重不漏")
 @allure.severity(allure.severity_level.CRITICAL)
 def test_pages_cover_without_duplication(anon_client):
-    """取前 3 页，id 集合不能有重复。
+    """翻完全部页：不重复，且 X-Total 与实际翻到的条数一致。
 
-    这条用例抓的是「排序不稳定导致跨页重复」——
-    单看每一页都正常，合起来才有问题，参数化测不出来。
+    原来这条只查前 3 页：项目不足 20 个时第 2、3 页是空的，实际只验了 1 页，
+    等于没测。现在改成按 X-Next-Page 一路翻到底。
+
+    不造数据也能有检测力——因为 X-Total 是服务端自己算的，
+    拿它和「实际翻到多少条」比对，翻页提前结束、丢尾页、越界回落都会被抓住。
+    需要「造数据证明不遗漏」的场景在 test_pagination_scoped.py。
     """
-    seen: list[int] = []
-    for page in (1, 2, 3):
-        resp = anon_client.client.get(
-            "/projects", params={"per_page": 20, "page": page}, expect=(200, 401, 403)
-        )
-        if resp.status != 200:
-            pytest.skip(f"匿名无法访问项目列表（HTTP {resp.status}）")
-        rows = resp.json_data
-        if not rows:
-            break
-        seen.extend(r["id"] for r in rows)
+    report = scan(anon_client.client, "/projects", per_page=20)
+    if not report.rows:
+        pytest.skip("匿名账号看不到任何项目，无处可翻")
 
-    if not seen:
-        pytest.skip("没有可分页的数据")
-
-    dup = [i for i in set(seen) if seen.count(i) > 1]
-    assert not dup, f"跨页出现重复项目 id：{dup[:5]}"
-    allure.attach(f"共取 {len(seen)} 条，去重后 {len(set(seen))} 条",
-                  name="分页校验", attachment_type=allure.attachment_type.TEXT)
+    allure.attach(report.describe(), name="分页校验", attachment_type=allure.attachment_type.TEXT)
+    assert_scan_integrity(report, per_page=20)
 
 
 @allure.epic("GitLab API")

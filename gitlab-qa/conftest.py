@@ -12,6 +12,8 @@ from __future__ import annotations
 import json
 import os
 import time
+import datetime
+import sys
 from pathlib import Path
 
 import pytest
@@ -54,7 +56,7 @@ def pytest_addoption(parser: pytest.Parser) -> None:
     g.addoption("--perf-p95", type=int, default=None)
     g.addoption("--perf-min-rps", type=float, default=None)
     g.addoption("--perf-jitter", type=float, default=None)
-    g.addoption("--include-quarantine", action="store_true",
+    g.addoption("--include-quarantine", action="store_true",   # 注册:连隔离区里的用例一起跑（验收修复是否真的生效时用）。
                 help="连隔离区里的用例一起跑（验收修复是否真的生效时用）")
 
 
@@ -66,7 +68,9 @@ def _quarantine(config: pytest.Config) -> Quarantine:
         # 所有被隔离的用例会突然回到门禁里，表现为"莫名其妙红一片"
         pytest.exit(f"隔离区名单无法解析：{exc}", returncode=4)
 
-
+# pytest 报告头钩子，用来在终端报告顶部打印当前运行环境和隔离区状态。
+#pytest_report_header	测试开始前	显示环境、版本、配置等上下文
+#pytest_terminal_summary	测试结束后	显示失败摘要、性能统计等
 def pytest_report_header(config: pytest.Config) -> list[str]:
     s = Settings.load(
         env=config.getoption("--env"),
@@ -78,10 +82,10 @@ def pytest_report_header(config: pytest.Config) -> list[str]:
     if q.entries:
         expired = q.expired()
         lines.append(
-            f"隔离区    {len(q.entries)} 条（生效中 {len(q.entries) - len(expired)}，"
+            f"隔离区    {len(q.entries)} 条（生效中 {len(q.entries) - len(expired)}，" #显示总条数、生效中条数、已过期条数。
             f"已过期 {len(expired)}）  名单：flake/quarantine.json"
         )
-        if expired and not config.getoption("--include-quarantine"):
+        if expired and not config.getoption("--include-quarantine"): #如果有已过期的隔离项，且没有传 --include-quarantine，就逐条提示"本次已恢复执行"。
             for e in expired:
                 lines.append(f"  [到期] {e.nodeid} —— {e.due} 到期，本次已恢复执行")
     return lines
@@ -101,7 +105,7 @@ def pytest_configure(config: pytest.Config) -> None:
         "Perf.Concurrency": str(s.perf_concurrency),
         "Perf.Samples": str(s.perf_samples),
         "Perf.P95Threshold": f"{s.perf_p95_ms} ms",
-        "Python": "3.13",
+        "Python": f"{sys.version_info.major}.{sys.version_info.minor}.{sys.version_info.micro}",
     }
     # --alluredir 是 allure-pytest 的选项（dest=allure_report_dir），
     # --allure-dir 是我们自己加的。两个不是一回事，必须以实际使用的为准，
@@ -124,14 +128,26 @@ def pytest_configure(config: pytest.Config) -> None:
     # 二来会在收尾时一口气删掉几十个旧文件——企业 DLP / 沙箱的批量删除
     # 守卫会直接掐掉进程，表现是"跑到 100% 却没有汇总行、退出码 1"，
     # 看着像用例失败，实际是清理动作被拦。批次号把这两个问题一起解决。
-    if not hasattr(config, "workerinput"):
-        os.environ.setdefault("GQA_COVERAGE_RUN", time.strftime("%Y%m%d-%H%M%S"))
+    if not hasattr(config, "workerinput"): #hasattr(config, "workerinput")是 xdist 判断"当前是不是 worker 进程"的标准写法
+        #os.environ.setdefault("GQA_COVERAGE_RUN", time.strftime("%Y%m%d-%H%M%S"))
+        import uuid  #不过 time.strftime 精度到秒，如果同一秒内反复触发（比如 CI 里并行多个 job 同时启动），批次号会撞。可以考虑加个随机后缀
+        run_id = f"{time.strftime('%Y%m%d-%H%M%S')}-{uuid.uuid4().hex[:6]}"
+        os.environ.setdefault("GQA_COVERAGE_RUN", run_id)
 
 
 # ==========================================================================
 # 收集期守卫
 # ==========================================================================
 def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item]) -> None:
+    '''
+    收集期守卫：是测试框架里非常关键的动态用例调度中心。它在测试收集完成后、正式执行前运行，负责根据当前环境配置和隔离区策略，动态决定哪些用例该跑、哪些该跳过。
+    items:是本轮收集到的所有测试用例对象
+    item.keywords 包含了该用例所有的标记（marker）和层级名称
+    实现了三个维度的安全与质量防护：
+        配置防护：没 Token 就不跑鉴权用例，防止误报。
+        环境防护：生产环境不跑破坏性用例，防止事故。
+        质量防护：隔离不稳定用例，到期自动释放，倒逼修复。
+    '''
     s = Settings.load(
         env=config.getoption("--env"),
         base_url=config.getoption("--base-url"),
@@ -154,7 +170,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
             item.add_marker(skip_no_token)
         if s.env == "prod" and "destructive" in marks:
             item.add_marker(skip_prod)
-        entry = listed.get(item.nodeid)
+        entry = listed.get(item.nodeid) #item.nodeid（如 tests/test_issues.py::test_create_issue）去隔离区映射表里查。如果查到了，说明该用例正处于隔离保护期，自动跳过并给出原因
         if entry is not None:
             item.add_marker(pytest.mark.skip(
                 reason=f"隔离区：{entry.describe()}"
@@ -442,3 +458,15 @@ def _capture_failure_evidence(item: pytest.Item) -> None:
     perf = getattr(item, "_perf_result", None)
     if perf is not None:
         _attach_text(perf.markdown(), "性能采样明细")
+
+
+# 验证 fixture 作用域：用计数器，别用 id()
+# CPython 会复用已释放对象的内存地址，id() 相同不代表是同一个实例，
+# 用它验证会得出「作用域正确」的错误结论。
+created = {"n": 0}
+
+@pytest.fixture(scope="session")
+def client(settings):
+    created["n"] += 1
+    return created
+
