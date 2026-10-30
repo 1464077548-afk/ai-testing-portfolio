@@ -37,8 +37,7 @@ pytestmark = [
 @allure.feature("注入与转义")
 @allure.story("XSS 载荷被原样存储，不被求值")
 @allure.severity(allure.severity_level.CRITICAL)
-@pytest.mark.parametrize("payload", XSS_PAYLOADS,
-                         ids=["script_tag", "img_onerror", "js_uri"])
+@pytest.mark.parametrize("payload", XSS_PAYLOADS)
 def test_xss_payload_is_stored_literally(target, gl, data_factory, payload):
     project = data_factory.project()
     pid = project["id"]
@@ -67,8 +66,7 @@ def test_xss_payload_is_stored_literally(target, gl, data_factory, payload):
 @allure.feature("注入与转义")
 @allure.story("模板语法不被求值")
 @allure.severity(allure.severity_level.CRITICAL)
-@pytest.mark.parametrize("payload", TEMPLATE_PAYLOADS,
-                         ids=["jinja", "erb", "es_template"])
+@pytest.mark.parametrize("payload", TEMPLATE_PAYLOADS)
 def test_template_payload_is_not_evaluated(target, gl, data_factory, payload):
     """{{ 7 * 7 }} 存进去就该是 {{ 7 * 7 }}。
 
@@ -96,8 +94,7 @@ def test_template_payload_is_not_evaluated(target, gl, data_factory, payload):
 @allure.feature("注入与转义")
 @allure.story("搜索参数注入不生效且不泄露 SQL 报错")
 @allure.severity(allure.severity_level.BLOCKER)
-@pytest.mark.parametrize("payload", SQLI_PAYLOADS,
-                         ids=["tautology", "drop_table", "union_select"])
+@pytest.mark.parametrize("payload", SQLI_PAYLOADS)
 def test_sqli_in_search_does_not_leak_or_break(target, gl, data_factory, payload):
     data_factory.project()  # 保证搜索空间非空
 
@@ -129,8 +126,7 @@ def test_sqli_in_search_does_not_leak_or_break(target, gl, data_factory, payload
 @allure.feature("注入与转义")
 @allure.story("路径穿越读不到系统文件")
 @allure.severity(allure.severity_level.BLOCKER)
-@pytest.mark.parametrize("payload", PATH_TRAVERSAL_PAYLOADS,
-                         ids=["plain", "encoded", "encoded_dots"])
+@pytest.mark.parametrize("payload", PATH_TRAVERSAL_PAYLOADS)
 def test_path_traversal_is_rejected(target, payload):
     """必须用原始请求，否则测的是客户端不是服务端。
 

@@ -25,10 +25,14 @@ GitLab 只读仓库根的 `.gitlab-ci.yml`。这是 monorepo —— `gitlab-qa/`
 
 三层，缺一不可：
 
-1. **保护分支**：`main` 的 push 权限设为 *No one* —— 谁都不能本地直推，
-   包括管理员。想进主干只有 MR 一条路。
+1. **保护分支**：`main` 受保护（push 仅 Maintainer、merge 仅 Maintainer，
+   禁止 force push）。日常改动走 MR；保护分支的价值是挡住误推与强推，
+   **不是**门禁本身 —— GitLab CE 的 API 不接受"push 权限 = No one"
+   （实测 `allowed_to_push: [{access_level: 0}]` 会被忽略、落回 Maintainers），
+   这一点如实记录，不假装有更严的限制。
 2. **Pipelines must succeed**：项目设置 `only_allow_merge_if_pipeline_succeeds`。
    MR 的头流水线没绿，Merge 按钮就是灰的；用 API 直接 merge 会返回 405。
+   这是免费版真正的硬门禁。
 3. **MR 流水线包含回归**：`regression:api` / `regression:ui` / `regression:e2e` 三个 job
    只在 MR 与主干上出现。UI 与 E2E 拆成独立 job —— 失败时能一眼定位到层，
    且不会因为其中一个崩了把另一层的证据一起丢掉。
