@@ -60,13 +60,9 @@ workflow:
 default:
   image: python:3.13-slim
   interruptible: true
-  cache:
-    key: "pip-$CI_JOB_NAME"
-    paths:
-      - ".cache/pip"
   before_script:
     - cd "$CI_PROJECT_DIR/$GQA_DIR"
-    - pip install --quiet -e ".[dev]"
+    - pip install --quiet --retries 5 -e ".[dev]"
 
 # 回归：合并前、主干、夜间全量、手动都要跑
 .regression_rules: &regression_rules
@@ -219,7 +215,6 @@ report:
   image:
     name: frankescobar/allure-docker-service:2.29.0
     entrypoint: [""]
-  cache: {}
   before_script: []
   allow_failure: true
   needs:
