@@ -60,6 +60,16 @@ workflow:
 default:
   image: python:3.13-slim
   interruptible: true
+  # 只重试「基础设施坏了」，不重试用例失败。
+  # 共享 runner 偶发 502 / 容器被回收时，重跑是合理动作；
+  # 把断言失败也重跑，等于把真缺陷洗成绿灯。
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - scheduler_failure
+      - api_failure
   before_script:
     - cd "$CI_PROJECT_DIR/$GQA_DIR"
     - pip install --quiet --retries 5 -e ".[dev]"
