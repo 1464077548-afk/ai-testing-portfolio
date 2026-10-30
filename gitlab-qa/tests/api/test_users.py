@@ -140,12 +140,13 @@ def test_admin_can_delete_user(gl):
             return True
         return (resp.json_data or {}).get("state") in ("blocked", "deleted")
 
-    # 轮询窗口给 120s：删除是后台异步任务（Sidekiq），全量并发跑时
-    # 实例负载高、队列积压——实测轻载 2s、满载可超过 60s（容器内存吃紧时
-    # Sidekiq 的队列会明显滞后）。窗口只在收敛变慢时才烧满，
+    # 轮询窗口给 240s：删除是后台异步任务（Sidekiq），全量并发跑时
+    # 实例负载高、队列积压——实测轻载 2s；CI 上四路并发 + 反复造数据后
+    # Sidekiq default 队列积压到 400+ 条、延迟 65s 以上（实测 2026-10-30），
+    # 120s 窗口会周期性不够。窗口只在收敛变慢时才烧满，
     # 正常路径一翻转立刻返回，不会平白拖慢套件。
     # 间隔 2s：满载时每秒一发只会加重实例负担，反而拖慢收敛。
-    settled = wait_until(_taken_effect, timeout=120.0, interval=2.0,
+    settled = wait_until(_taken_effect, timeout=240.0, interval=2.0,
                          description=f"用户 {uid} 进入已删除/停用态")
     last = gl.users.get(uid)
     allure.attach(
