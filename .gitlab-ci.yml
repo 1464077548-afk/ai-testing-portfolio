@@ -60,13 +60,19 @@ workflow:
 default:
   image: python:3.13-slim
   interruptible: true
-  cache:
-    key: "pip-$CI_JOB_NAME"
-    paths:
-      - ".cache/pip"
+  # 只重试「基础设施坏了」，不重试用例失败。
+  # 共享 runner 偶发 502 / 容器被回收时，重跑是合理动作；
+  # 把断言失败也重跑，等于把真缺陷洗成绿灯。
+  retry:
+    max: 2
+    when:
+      - runner_system_failure
+      - stuck_or_timeout_failure
+      - scheduler_failure
+      - api_failure
   before_script:
     - cd "$CI_PROJECT_DIR/$GQA_DIR"
-    - pip install --quiet -e ".[dev]"
+    - pip install --quiet --retries 5 -e ".[dev]"
 
 # 回归：合并前、主干、夜间全量、手动都要跑
 .regression_rules: &regression_rules
@@ -136,10 +142,15 @@ regression:ui:
   stage: regression
   timeout: 30 minutes
   rules: *regression_rules
+  variables:
+    PLAYWRIGHT_CHROMIUM_EXECUTABLE: "/usr/bin/chromium"
   before_script:
     - cd "$CI_PROJECT_DIR/$GQA_DIR"
-    - pip install --quiet -e ".[dev]"
-    - python -m playwright install --with-deps chromium
+    - pip install --quiet --retries 5 -e ".[dev]"
+    # 不用 `playwright install chromium`：官方 CDN 在部分网络下直接 TLS 断连（实测）。
+    # Debian 源里的 chromium 版本一致，换镜像后 90 秒装完，且和测试用的浏览器同内核。
+    - sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends chromium
   script:
     - python -m pytest tests/ui -q --alluredir=$ALLURE_RESULTS
   artifacts:
@@ -151,10 +162,13 @@ regression:e2e:
   stage: regression
   timeout: 30 minutes
   rules: *regression_rules
+  variables:
+    PLAYWRIGHT_CHROMIUM_EXECUTABLE: "/usr/bin/chromium"
   before_script:
     - cd "$CI_PROJECT_DIR/$GQA_DIR"
-    - pip install --quiet -e ".[dev]"
-    - python -m playwright install --with-deps chromium
+    - pip install --quiet --retries 5 -e ".[dev]"
+    - sed -i 's|deb.debian.org|mirrors.tuna.tsinghua.edu.cn|g' /etc/apt/sources.list.d/debian.sources
+    - apt-get update -qq && apt-get install -y -qq --no-install-recommends chromium
   script:
     - python -m pytest tests/e2e -q --alluredir=$ALLURE_RESULTS
   artifacts:
@@ -219,7 +233,6 @@ report:
   image:
     name: frankescobar/allure-docker-service:2.29.0
     entrypoint: [""]
-  cache: {}
   before_script: []
   allow_failure: true
   needs:

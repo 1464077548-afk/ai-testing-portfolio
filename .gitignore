@@ -12,6 +12,9 @@
 *.pat
 secrets.*
 credentials.*
+# 例外：这是源码不是密钥文件 —— TokenFactory / WebSession 的实现，
+# 被上面的 credentials.* 误伤，会导致 CI 里 ImportError（本地有文件所以看不出来）
+!gitlab-qa/src/gqa/api/credentials.py
 *credential*.json
 
 # ---- 运行产物 ----
