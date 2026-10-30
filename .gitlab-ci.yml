@@ -1,0 +1,260 @@
+# =====================================================================
+# 整仓 CI/CD 编排（GitLab CE 自建实例）
+#
+# 为什么放在仓库根而不是 gitlab-qa/ 里：
+#   GitLab 只读仓库根的 .gitlab-ci.yml。这是一个 monorepo，
+#   子工程只是目录，不是独立仓库；把流水线写进子目录 = 永远不会被触发。
+#   所有 job 因此统一 cd 进 gitlab-qa/ 再执行。
+#
+# 四种触发源对应四种决策，不要混为一谈：
+#   push（每次提交）            → 框架自检 + 冒烟，1 分钟内给结论
+#   merge_request_event（PR）   → 冒烟 + 回归（api/ui/e2e），合并门禁
+#   schedule（夜间 02:00）      → 全量 + 性能 + 安全 + 稳定性采样
+#   web（手动）                 → 全量，性能/安全默认手动
+#
+# 性能与安全不进 PR：前者在共享 CI 机上没有可比性，后者会写数据且需要人判读。
+# 把它们放进门禁，只会让所有人学会无视红灯。
+#
+# 关键前置（项目 CI/CD Variables，全部 Masked）：
+#   TARGET_URL            被测实例地址，容器内用 compose 网络别名
+#   GITLAB_TOKEN          管理员 PAT（写操作 / 越权断言）
+#   GITLAB_MEMBER_TOKEN   第二身份 PAT（越权断言必须有它，否则是假绿）
+#   GITLAB_ROOT_PASSWORD  UI 用例构造登录态
+#   SECURITY_ALLOWED_HOSTS  安全用例显式授权的目标 host
+# =====================================================================
+
+stages:
+  - check
+  - smoke
+  - regression
+  - perf
+  - security
+  - report
+
+variables:
+  # 子工程目录：所有 job 都先 cd 进去，脚本里保持相对路径
+  GQA_DIR: "gitlab-qa"
+  # 被测实例地址由项目变量注入，默认值只是兜底
+  GITLAB_BASE_URL: "$TARGET_URL"
+  PYTHONUNBUFFERED: "1"
+  PIP_DISABLE_PIP_VERSION_CHECK: "1"
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+  ALLURE_RESULTS: "allure-results"
+  GIT_DEPTH: "1"
+
+# ---------------------------------------------------------------------
+# 工作流规则：避免同一个提交同时产生「分支流水线 + MR 流水线」两份
+# （重复触发不是勤奋，是双倍排队和两份互相矛盾的绿灯）
+# ---------------------------------------------------------------------
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+    - if: '$CI_PIPELINE_SOURCE == "web"'
+    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+    # 分支已经开了 MR：交给 MR 流水线，别再造一条分支流水线
+    - if: '$CI_PIPELINE_SOURCE == "push" && $CI_OPEN_MERGE_REQUESTS'
+      when: never
+    - if: '$CI_PIPELINE_SOURCE == "push"'
+
+default:
+  image: python:3.13-slim
+  interruptible: true
+  cache:
+    key: "pip-$CI_JOB_NAME"
+    paths:
+      - ".cache/pip"
+  before_script:
+    - cd "$CI_PROJECT_DIR/$GQA_DIR"
+    - pip install --quiet -e ".[dev]"
+
+# 回归：合并前、主干、夜间全量、手动都要跑
+.regression_rules: &regression_rules
+  - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+  - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
+  - if: '$CI_PIPELINE_SOURCE == "schedule"'
+  - if: '$CI_PIPELINE_SOURCE == "web"'
+
+# 夜间/手动专属：性能、安全、稳定性采样
+.nightly_rules: &nightly_rules
+  - if: '$CI_PIPELINE_SOURCE == "schedule"'
+  - if: '$CI_PIPELINE_SOURCE == "web"'
+    when: manual
+
+# ---------------------------------------------------------------------
+# 1. 框架自检：不要被测系统，最快失败
+# ---------------------------------------------------------------------
+unit:
+  stage: check
+  timeout: 10 minutes
+  script:
+    - python -m pytest tests/unit -q --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths: ["$GQA_DIR/$ALLURE_RESULTS/"]
+
+# 隔离区体检：缺原因 / 缺期限 / 已到期 / 超限，任何一条都让流水线红。
+# 隔离区一旦变成垃圾桶就救不回来了，所以必须每次提交都顶到脸上。
+quarantine:
+  stage: check
+  timeout: 10 minutes
+  script:
+    - python tools/flake.py --check-quarantine --verify-nodeids
+  allow_failure: false
+
+# ---------------------------------------------------------------------
+# 2. 冒烟：只读、不需要写权限，每次提交都跑
+# ---------------------------------------------------------------------
+smoke:
+  stage: smoke
+  timeout: 15 minutes
+  script:
+    - python -m pytest tests/unit tests/smoke tests/api/test_contract.py tests/api/test_pagination.py -q -m "not destructive" --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths: ["$GQA_DIR/$ALLURE_RESULTS/"]
+
+# ---------------------------------------------------------------------
+# 3. 回归：合入前的门禁主体
+#    拆成三个 job 而不是一个大 job —— 失败要能一眼定位到层，
+#    而且 ui/e2e 失败时并行的 api 结果不会被连带丢掉。
+# ---------------------------------------------------------------------
+regression:api:
+  stage: regression
+  timeout: 30 minutes
+  rules: *regression_rules
+  script:
+    - python -m pytest tests/api -q -n 4 --dist loadscope --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths: ["$GQA_DIR/$ALLURE_RESULTS/"]
+
+regression:ui:
+  stage: regression
+  timeout: 30 minutes
+  rules: *regression_rules
+  before_script:
+    - cd "$CI_PROJECT_DIR/$GQA_DIR"
+    - pip install --quiet -e ".[dev]"
+    - python -m playwright install --with-deps chromium
+  script:
+    - python -m pytest tests/ui -q --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths: ["$GQA_DIR/$ALLURE_RESULTS/"]
+
+regression:e2e:
+  stage: regression
+  timeout: 30 minutes
+  rules: *regression_rules
+  before_script:
+    - cd "$CI_PROJECT_DIR/$GQA_DIR"
+    - pip install --quiet -e ".[dev]"
+    - python -m playwright install --with-deps chromium
+  script:
+    - python -m pytest tests/e2e -q --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths: ["$GQA_DIR/$ALLURE_RESULTS/"]
+
+# ---------------------------------------------------------------------
+# 4. 性能：只在夜间/手动跑，有阈值门禁（P95 / 错误率 / 抖动 / 吞吐）
+#    环境本身退化时用例会 skip 并写明原因 —— skip 不是 pass。
+# ---------------------------------------------------------------------
+perf:
+  stage: perf
+  timeout: 30 minutes
+  rules: *nightly_rules
+  script:
+    - python -m pytest tests/perf -q --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths: ["$GQA_DIR/$ALLURE_RESULTS/"]
+
+# ---------------------------------------------------------------------
+# 5. 安全：只在夜间/手动跑，且只对白名单内的目标执行。
+#    必须先确保第二身份存在：缺了它越权断言就是假绿，
+#    所以 ensure_member 失败时让 job 直接红，而不是靠用例 skip 混过去。
+# ---------------------------------------------------------------------
+security:
+  stage: security
+  timeout: 30 minutes
+  rules: *nightly_rules
+  script:
+    - python tools/ensure_member.py
+    - python -m pytest tests/security -q --alluredir=$ALLURE_RESULTS
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths: ["$GQA_DIR/$ALLURE_RESULTS/"]
+
+# 稳定性采样：一次只能回答"现在红还是绿"，回答不了"这条用例能不能信"。
+# 退出码 2 = 持续失败（真缺陷），3 = 抖动超阈值，都会让流水线红。
+flake:
+  stage: security
+  timeout: 30 minutes
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "schedule"'
+  script:
+    - python tools/flake.py --suite smoke --rounds 5 --max-flake-rate 0.05 --json flake-report.json
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - "$GQA_DIR/artifacts/flake/"
+      - "$GQA_DIR/flake-report.json"
+
+# ---------------------------------------------------------------------
+# 6. 汇总报告：分 job 跑是为了并行与失败隔离，但给人看的报告必须只有一份
+# ---------------------------------------------------------------------
+report:
+  stage: report
+  timeout: 15 minutes
+  image:
+    name: frankescobar/allure-docker-service:2.29.0
+    entrypoint: [""]
+  cache: {}
+  before_script: []
+  allow_failure: true
+  needs:
+    - job: unit
+      optional: true
+    - job: smoke
+      optional: true
+    - job: regression:api
+      optional: true
+    - job: regression:ui
+      optional: true
+    - job: regression:e2e
+      optional: true
+    - job: perf
+      optional: true
+    - job: security
+      optional: true
+  script:
+    - mkdir -p merged
+    - find . -type d -name "$ALLURE_RESULTS" -exec cp -r {}/* merged/ \; 2>/dev/null || true
+    - cp "$GQA_DIR/allure/categories.json" merged/ 2>/dev/null || true
+    - |
+      cat > merged/executor.json <<EOF
+      {
+        "name": "GitLab CE CI",
+        "type": "gitlab",
+        "url": "$CI_PIPELINE_URL",
+        "buildName": "#$CI_PIPELINE_ID",
+        "reportName": "AI Testing Portfolio · $CI_COMMIT_REF_NAME"
+      }
+      EOF
+    - allure generate merged -o public --clean
+    - python "$GQA_DIR/tools/localize_report.py" public || echo "汉化不可用，报告保持英文"
+  artifacts:
+    when: always
+    expire_in: 30 days
+    paths:
+      - public
