@@ -40,7 +40,11 @@ src/gqa/
   contracts.py      jsonschema：服务端对外承诺的契约
   api/client.py     HTTP 客户端：重试、日志、错误分类
   api/resources.py  资源门面：projects / issues / users 语义化封装
+  api/paging.py     跨页扫描器：X-Next-Page 推进 + 六条完整性判据
+                    （不重复 / 不遗漏 / 每页满载 / X-Page 回显 / X-Total 一致 / 页数=ceil）
+  api/verdict.py    边界裁决器：接受→回查逐字相等；拒绝→4xx 且消息指向字段
   data/factory.py   数据工厂：创建即登记，用例结束自动回收
+  data/case_loader.py  YAML 用例加载器：字段白名单 + 启动时严格校验
   perf/runner.py    并发采样：P95/P99、错误率、Excel 明细导出
   security/         安全测试支撑：guard 白名单守卫 / scanner 扫描器 / raw 原始请求
   flake/            稳定性治理：model 四类判定 / quarantine 隔离区名单
@@ -49,6 +53,12 @@ src/gqa/
   utils/wait.py     轮询等待：应对异步一致性
 tests/
   unit/     smoke/    api/     e2e/    ui/    perf/    security/
+  data/api/          YAML 数据矩阵：校验 14 / 命名 19 / 查询参数 23（共 56 条）
+  test_case_data.py  YAML 自检（25 条）：数据写坏会响，而不是静默少跑
+docs/
+  test_case_inventory.html  企业级用例清单（生成物，见第 11 节）
+  gitlab_ce_api_doc.html    标准接口文档（生成物，见第 11 节）
+  openapi_v2_19.0.1.yaml    官方 OpenAPI 规范存档（接口文档的数据源）
 tools/
   run.py             一键运行：跑测试 → 生成报告 → 打开浏览器
   doctor.py          环境自检 + 自建实例签发 PAT
@@ -56,6 +66,9 @@ tools/
   cleanup.py         产物清理：日志 / 截图 / trace / 旧报告（时间+体积+数量三重策略）
   schedule_cleanup.ps1  把清理注册成 Windows 每日计划任务（时间可配置）
   ensure_member.py   创建第二个身份（普通用户）供越权断言使用
+  export_case_inventory.py  用例清单导出（AST + pytest 实收集 + YAML 三源对账）
+  export_api_doc.py          接口文档导出（官方 OpenAPI + QA 覆盖标记）
+  paging_mutation_check.py   分页变异测试：注入 5 种服务端缺陷，验证用例检测力
 flake/
   quarantine.json    隔离区名单：**不是垃圾桶**，每条都要有原因和期限
 allure/
@@ -407,6 +420,21 @@ Allure 报告 141 个文件，趋势继承 5 条，环境信息中文正常
 清理预览 --dry-run                           删 69 个 / 70.7 MB（days=0 时），保留最新 3 个
 ```
 
+### 接口层持续加固（2026-11-16 实测）
+
+```
+tests/api + test_case_data.py（4 worker 并行）
+  375 passed / 3 skipped / 13 xfailed / 0 failed（8m32s）
+
+分页变异测试   注入 5 种服务端缺陷（只翻首页 / 忽略 page 参数 /
+               压缩 per_page / 虚报 total / 跳过一条），5/5 全部被抓
+深水区四件套   test_boundaries / test_idempotency /
+               test_state_transitions / test_request_semantics
+               77 passed + 13 xfail（xfail 均为实测确认的产品缺陷，见第 10 节）
+六模块补测     badges / award_emoji / ci_variables / hooks / releases / wikis
+               65 passed / 0 failed（期望值全部来自三轮探针实测）
+```
+
 安全套件当场抓到并处理的问题：
 
 | 发现 | 处置 |
@@ -465,7 +493,92 @@ GitLab CE 19.0.1 已由 `gitlab-ce/deploy.ps1` 在本机 Docker Desktop（WSL2 L
 但不影响容器运行——Docker Desktop 本身就跑在 WSL2 后端。
 完整踩坑记录见 `gitlab-ce/README.md`。
 
-## 10. 已知限制
+## 10. 接口深水区：边界 · 幂等 · 状态流转 · 数据驱动
+
+「正向 CRUD + 404/401」只是接口测试的地板。`tests/api/` 里有一组专门咬
+企业级深水区场景的文件，每条期望值都来自**实测探针**，不靠"服务端应该会拒绝"推导。
+
+### 边界：不猜服务端选哪边（`test_boundaries.py` + `api/verdict.py`）
+
+写「超长标题应该 400」是猜——接受还是拒绝是服务端的实现选择。
+`verdict()` 裁决器只守两条与实现无关的规则：
+
+- **接受 → 回查值必须与送出值逐字相等**（重新 GET，不信创建响应的回显）
+- **拒绝 → 必须 4xx，且错误消息里出现该字段名**（否则拒绝的原因与本用例无关，
+  路径写错、Token 失效也会 4xx，通过它等于没测）
+
+这套判据抓到了状态码断言永远看不见的缺陷：
+
+| 实测发现 | 证据 | 处置 |
+|---|---|---|
+| 非法 `due_date`（如 `2026-02-30`）**静默丢弃** | 200/201 但回查 `null` | `xfail(strict=True)` 固化 |
+| 全角空格 `U+3000` 标题被接受 | 半角空格/Tab/换行都 400，只有它 201 | `xfail(strict=True)` 固化 |
+
+### 幂等（`test_idempotency.py`）
+
+- **重复删除**：议题/标签等资源 → 404；项目 → 400「already been marked for
+  deletion」（与其他资源不一致）——清理脚本必须当成功处理。
+- **并发创建**：两线程竞发同名资源。标签名唯一（实测串行 409），并发却冒出
+  **500**（数据库唯一冲突没转成 4xx）；里程碑的"先查后插"校验在并发下被绕过，
+  **真落库 2 条同名**（TOCTOU）。均以 `xfail` 固化；竞态类用 `strict=False`，
+  因为"这轮没复现"不该让构建失败。
+
+### 状态流转（`test_state_transitions.py`）
+
+- 合法回路（close→reopen）与**终态**（merged 后 close/reopen 返回 200 但
+  state 必须仍是 `merged`——200 不代表状态变了）。
+- 非法 `state_event`：允许 400 拒绝，也允许 200 忽略，**但不许把状态改掉**。
+- MR 合并的坑：新建后约 4 秒内 merge 会拿 405，而 `merge_status` 一直卡在
+  `checking`——没有任何字段能可靠表示"可以合并了"，只能重试动作本身
+  （`_merge_when_ready`，405/406/409 视为未就绪）。
+
+### 请求语义（`test_request_semantics.py`）
+
+畸形 JSON → 400；`text/plain` → 415；**表单编码也被接受**（"必须发 JSON"
+是假前提）；不支持的方法返回 **404 而非 405**。这些是绕过客户端封装、
+直接发原始请求测出来的。
+
+### YAML 数据驱动（`tests/data/api/` + `data/case_loader.py`）
+
+56 条矩阵用例（校验 14 / 命名 19 / 查询参数 23）由 `pytest_generate_tests`
+钩子驱动，期望值全部实测。加载器启动即校验：未知字段、缺必填、GET 带 body、
+path 不以 `/` 开头、`{未知占位符}` 都直接抛错——**数据写坏会响，而不是静默少跑**。
+`tests/test_case_data.py` 另有 25 条不依赖实例的自检锁住这些行为，
+包括拦截 `expect: [200, 400]` 这类"两种结果都通过"的自欺期望。
+
+## 11. 企业级用例清单与接口文档（`docs/`）
+
+两份单文件 HTML 文档，零外部依赖、可离线打开，均由工具自动生成、数字不靠手抄。
+
+### 用例清单 `docs/test_case_inventory.html`
+
+- **333 个测试函数 / 540 条可执行用例**（参数化展开后），与 pytest 实收集逐条对账
+- 企业编号 `套件-模块-序号`（如 `API-AUTH-001`），全局唯一已校验
+- 每条含：标题、设计理由（docstring）、P0–P3 优先级、标记、真实可执行条数、
+  源码行号；5 个 xfail 已知缺陷连同实测证据单列面板
+- 三层数据源：AST 解析源码 + `pytest --collect-only` 实数 + YAML 矩阵解析
+
+### 接口文档 `docs/gitlab_ce_api_doc.html`
+
+- **1151 个接口**：1125 个来自官方 OpenAPI 规范（v19.0.1 已存档于
+  `docs/openapi_v2_19.0.1.yaml`）+ 26 个官方漏收但实测在用的补充接口
+  （`/user`、labels、milestones、议题 notes 等——官方自动生成规范的已知缺陷）
+- 14 个业务域分组，每个接口标注方法、路径、状态码、参数、响应语义，
+  以及 **QA 已覆盖**标记（140 条，由框架源码 AST 提取路径模板自动比对）
+- 通用约定全部来自实测：`per_page=0`→400、`-1` 静默回落 20、>100 夹到 100、
+  重复删项目 400、不支持的方法 404 非 405 等
+
+### 再生成与对账
+
+```bash
+python tools/export_case_inventory.py   # 用例清单（对账：tools/_probe_inv_check.py）
+python tools/export_api_doc.py          # 接口文档（差集：tools/_probe_spec_gap.py）
+```
+
+用例有增删后重跑即可；两份文档的内联 JS 均过 `node --check`，
+HTML 内嵌数据编号唯一性由脚本断言。
+
+## 12. 已知限制
 
 - `--issue-token` 依赖 `docker exec gitlab-rails runner`，只对容器部署的自建实例有效；
 - UI 用例未针对 GitLab 各版本的 DOM 差异做兼容，换版本可能需要调定位器；

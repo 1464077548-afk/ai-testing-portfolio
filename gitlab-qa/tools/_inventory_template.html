@@ -1,0 +1,593 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitLab QA · 测试用例清单</title>
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --ink:#1f2430; --ink-2:#5a6474; --ink-3:#8a93a5;
+  --line:#e4e7ec; --accent:#3b6ef5; --accent-soft:#eaf0fe;
+  --p0:#d92d20; --p0-bg:#fee4e2; --p1:#d97706; --p1-bg:#fef0c7;
+  --p2:#3b6ef5; --p2-bg:#eaf0fe; --p3:#667085; --p3-bg:#eceef1;
+  --p4:#98a2b3; --p4-bg:#f2f4f7;
+  --ok:#067647; --ok-bg:#e7f6ee; --warn:#b54708; --warn-bg:#fef4e6;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,"Courier New",monospace;
+  --radius:10px; --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.1);
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#10141c; --panel:#181e29; --ink:#e8ecf3; --ink-2:#a7b0c0; --ink-3:#78829a;
+    --line:#2a3244; --accent:#6b93ff; --accent-soft:#1d2740;
+    --p0:#ff6b5e; --p0-bg:#3a1c1a; --p1:#f7b955; --p1-bg:#382a14;
+    --p2:#6b93ff; --p2-bg:#1c2740; --p3:#9aa5bb; --p3-bg:#232a38;
+    --p4:#7c879e; --p4-bg:#1e2430;
+    --ok:#4ade9e; --ok-bg:#12291d; --warn:#ffb763; --warn-bg:#332512;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+  "Microsoft YaHei",sans-serif;font-size:15px;line-height:1.6}
+a{color:var(--accent);text-decoration:none}
+
+/* ---------- 头部 ---------- */
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:28px 24px 20px}
+.wrap{max-width:1280px;margin:0 auto}
+.head-row{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.logo{width:44px;height:44px;border-radius:11px;background:var(--accent);
+  color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+h1{font-size:22px;font-weight:700;letter-spacing:.3px}
+.sub{color:var(--ink-2);font-size:13px;margin-top:2px}
+.meta-line{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);
+  color:var(--accent);border-radius:20px;padding:4px 12px;font-size:12.5px;
+  font-weight:600}
+.chip.neutral{background:var(--p4-bg);color:var(--ink-2)}
+
+/* ---------- 统计卡 ---------- */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));
+  gap:12px;margin-top:18px}
+.stat{background:var(--bg);border:1px solid var(--line);border-radius:var(--radius);
+  padding:12px 16px}
+.stat .num{font-size:26px;font-weight:800;font-variant-numeric:tabular-nums}
+.stat .lbl{font-size:12px;color:var(--ink-2);margin-top:1px}
+.stat.warn .num{color:var(--warn)}
+.stat.ok .num{color:var(--ok)}
+
+/* ---------- 工具栏 ---------- */
+.toolbar{position:sticky;top:0;z-index:50;background:var(--panel);
+  border-bottom:1px solid var(--line);padding:10px 24px;
+  box-shadow:0 2px 8px rgba(16,24,40,.05)}
+.toolbar-in{max-width:1280px;margin:0 auto;display:flex;gap:10px;
+  flex-wrap:wrap;align-items:center}
+.search{flex:1 1 260px;display:flex;align-items:center;gap:8px;
+  border:1px solid var(--line);border-radius:8px;padding:7px 12px;background:var(--bg)}
+.search input{border:none;outline:none;background:transparent;color:var(--ink);
+  width:100%;font-size:14px}
+.search svg{flex:none;opacity:.55}
+.fgroup{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fbtn{border:1px solid var(--line);background:var(--panel);color:var(--ink-2);
+  border-radius:20px;padding:5px 13px;font-size:12.5px;cursor:pointer;
+  user-select:none;white-space:nowrap;font-weight:500;transition:all .15s}
+.fbtn:hover{border-color:var(--accent);color:var(--accent)}
+.fbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.fbtn .n{opacity:.65;margin-left:4px;font-size:11.5px}
+.fdivider{width:1px;height:20px;background:var(--line);margin:0 2px}
+.count-hint{font-size:12.5px;color:var(--ink-3);white-space:nowrap}
+
+/* ---------- 主体布局 ---------- */
+.layout{max-width:1280px;margin:0 auto;display:grid;
+  grid-template-columns:1fr;gap:20px;padding:20px 24px 60px}
+@media(min-width:1024px){
+  .layout{grid-template-columns:250px 1fr;align-items:start}
+  .sidenav{position:sticky;top:64px;max-height:calc(100vh - 84px);
+    overflow-y:auto;scrollbar-width:thin}
+}
+.sidenav{display:none}
+@media(min-width:1024px){.sidenav{display:block}}
+.sidenav .nav-title{font-size:11px;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:1px;margin:14px 0 6px;font-weight:700}
+.sidenav a{display:flex;justify-content:space-between;gap:8px;
+  padding:5px 10px;border-radius:7px;color:var(--ink-2);font-size:13px}
+.sidenav a:hover{background:var(--accent-soft);color:var(--accent)}
+.sidenav a .n{color:var(--ink-3);font-size:12px;font-variant-numeric:tabular-nums}
+
+/* ---------- 套件/模块 ---------- */
+.suite{margin-bottom:34px}
+.suite-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  padding-bottom:8px;border-bottom:2px solid var(--accent);margin-bottom:14px}
+.suite-head h2{font-size:19px;font-weight:700}
+.suite-head .tag{font-size:12px;color:var(--ink-3);font-family:var(--mono)}
+.suite-desc{color:var(--ink-2);font-size:13.5px;margin:-6px 0 14px;max-width:820px}
+.module{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow)}
+.mod-head{display:flex;align-items:center;gap:10px;padding:12px 16px;
+  cursor:pointer;user-select:none}
+.mod-head:hover{background:var(--accent-soft)}
+.mod-code{font-family:var(--mono);font-size:11.5px;font-weight:700;
+  background:var(--accent-soft);color:var(--accent);padding:2px 8px;
+  border-radius:6px;white-space:nowrap}
+.mod-file{font-weight:600;font-size:14px}
+.mod-count{margin-left:auto;font-size:12px;color:var(--ink-3);white-space:nowrap}
+.mod-doc{padding:0 16px 10px;color:var(--ink-2);font-size:13px;
+  border-bottom:1px solid var(--line);white-space:pre-wrap}
+.mod-doc:empty{display:none}
+
+/* ---------- 用例表 ---------- */
+table{width:100%;border-collapse:collapse}
+th{font-size:11.5px;color:var(--ink-3);text-align:left;font-weight:600;
+  padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap;
+  letter-spacing:.4px;text-transform:uppercase}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.case{cursor:pointer}
+tr.case:hover td{background:var(--accent-soft)}
+tr.case.open td{background:var(--accent-soft)}
+.cid{font-family:var(--mono);font-size:12px;color:var(--ink-3);white-space:nowrap}
+.ctitle{font-weight:600;font-size:13.5px}
+.cdesc{color:var(--ink-2);font-size:12.5px;margin-top:2px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.prio{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;
+  border-radius:12px;white-space:nowrap}
+.p0{background:var(--p0-bg);color:var(--p0)}.p1{background:var(--p1-bg);color:var(--p1)}
+.p2{background:var(--p2-bg);color:var(--p2)}.p3{background:var(--p3-bg);color:var(--p3)}
+.p4{background:var(--p4-bg);color:var(--p4)}
+.tags{display:flex;gap:4px;flex-wrap:wrap}
+.tag{font-size:10.5px;padding:2px 7px;border-radius:5px;background:var(--p4-bg);
+  color:var(--ink-2);white-space:nowrap}
+.tag.xf{background:var(--p0-bg);color:var(--p0);font-weight:700}
+.tag.sk{background:var(--p1-bg);color:var(--p1)}
+.tag.est{background:var(--warn-bg);color:var(--warn)}
+.cnum{font-variant-numeric:tabular-nums;font-size:13px;text-align:right;
+  white-space:nowrap;color:var(--ink-2)}
+.cnum b{font-size:14px;color:var(--ink)}
+
+/* ---------- 展开详情 ---------- */
+tr.detail td{background:var(--bg);padding:14px 16px}
+.detail-box{border-left:3px solid var(--accent);padding-left:14px}
+.detail-grid{display:grid;grid-template-columns:1fr;gap:10px;margin-top:10px}
+@media(min-width:720px){.detail-grid{grid-template-columns:1fr 1fr}}
+.kv{font-size:12.5px}
+.kv b{color:var(--ink-3);font-weight:600;font-size:11px;text-transform:uppercase;
+  letter-spacing:.5px;display:block;margin-bottom:2px}
+.kv code{font-family:var(--mono);font-size:12px;background:var(--panel);
+  border:1px solid var(--line);padding:2px 7px;border-radius:5px;
+  word-break:break-all;display:inline-block;margin:2px 4px 2px 0}
+.doc{font-size:13px;color:var(--ink-2);white-space:pre-wrap;margin-top:8px;
+  padding:10px 12px;background:var(--panel);border:1px solid var(--line);
+  border-radius:8px}
+.xf-box{margin-top:8px;padding:10px 12px;border-radius:8px;
+  background:var(--p0-bg);color:var(--p0);font-size:12.5px}
+.xf-box b{font-weight:800}
+
+/* ---------- 缺陷/跳过/矩阵 ---------- */
+.panel{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);margin-bottom:18px;box-shadow:var(--shadow)}
+.panel>h3{padding:14px 16px 10px;font-size:16px;display:flex;
+  align-items:center;gap:8px}
+.panel>h3 .n{font-size:12px;color:var(--ink-3);font-weight:500}
+.panel .pdesc{padding:0 16px 12px;color:var(--ink-2);font-size:13px}
+.reason{font-size:12.5px;color:var(--ink-2);max-width:560px}
+.badge{font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:10px}
+.badge.strict{background:var(--p0-bg);color:var(--p0)}
+.badge.loose{background:var(--p3-bg);color:var(--p3)}
+.badge.cond{background:var(--p1-bg);color:var(--p1)}
+.mth{font-family:var(--mono);font-size:11px;font-weight:700;padding:2px 7px;
+  border-radius:5px;white-space:nowrap}
+.mth.GET{background:var(--ok-bg);color:var(--ok)}
+.mth.POST{background:var(--p2-bg);color:var(--p2)}
+.mth.PUT,.mth.PATCH{background:var(--p1-bg);color:var(--p1)}
+.mth.DELETE{background:var(--p0-bg);color:var(--p0)}
+.pcell{font-family:var(--mono);font-size:12px;word-break:break-all;color:var(--ink-2)}
+
+/* ---------- 折叠 & 空态 ---------- */
+.mod-body{display:none}
+.module.open .mod-body{display:block}
+.module.open .caret{transform:rotate(90deg)}
+.caret{transition:transform .18s;flex:none;opacity:.5}
+.hidden{display:none!important}
+.empty{padding:40px;text-align:center;color:var(--ink-3);font-size:14px}
+section[id],.panel[id]{scroll-margin-top:72px}
+
+footer{border-top:1px solid var(--line);background:var(--panel);
+  padding:20px 24px;color:var(--ink-3);font-size:12.5px}
+footer .wrap{display:flex;flex-direction:column;gap:6px}
+footer code{font-family:var(--mono);background:var(--bg);padding:1px 6px;
+  border-radius:4px;border:1px solid var(--line)}
+@media(max-width:1023px){
+  .toolbar-in{gap:8px}
+  header{padding:20px 16px 16px}
+  .layout{padding:16px 12px 40px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="head-row">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 12l2 2 4-4"/><circle cx="12" cy="12" r="10"/></svg>
+      </div>
+      <div>
+        <h1>GitLab QA · 测试用例清单</h1>
+        <div class="sub" id="subline"></div>
+      </div>
+    </div>
+    <div class="meta-line" id="metachips"></div>
+    <div class="stats" id="stats"></div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="toolbar-in">
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input id="q" type="search" placeholder="搜索用例编号、名称、说明、标签…">
+    </div>
+    <div class="fgroup" id="suite-filter"></div>
+    <div class="fdivider"></div>
+    <div class="fgroup" id="sev-filter"></div>
+    <div class="fdivider"></div>
+    <div class="fgroup">
+      <button class="fbtn" id="fx-defect">已知缺陷 <span class="n" id="n-defect"></span></button>
+      <button class="fbtn" id="fx-reset">重置</button>
+    </div>
+    <span class="count-hint" id="count-hint"></span>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidenav" id="sidenav"></nav>
+  <main id="main"></main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div>数据来源：AST 解析 <code>tests/**</code> 全部用例源码（用例名 / allure 元数据 / 说明 / 标记 / xfail 原因）＋ <code>pytest --collect-only</code> 实际收集（可执行条数）＋ <code>tests/data/api/*.yaml</code>（数据驱动矩阵）。</div>
+    <div>重新生成：<code>python tools/export_case_inventory.py</code>　·　可执行条数＝参数化展开后的真实用例数；标记 <span style="color:var(--warn)">估算</span> 表示该模块收集报错、条数为推算值。</div>
+    <div id="gen-time"></div>
+  </div>
+</footer>
+
+<script>
+"use strict";
+const DATA = __PAYLOAD__;
+const PRIO = {blocker:["P0","p0"],critical:["P1","p1"],normal:["P2","p2"],
+              minor:["P3","p3"],trivial:["P4","p4"]};
+const PRIO_NAME = {blocker:"P0 阻断",critical:"P1 严重",normal:"P2 一般",
+                   minor:"P3 次要",trivial:"P4 轻微"};
+const LS_KEY = "gqa-inventory-v1";
+
+/* ---------- 状态 ---------- */
+let S = {q:"", suites:new Set(), sevs:new Set(), defectOnly:false,
+         open:new Set(), mods:new Set()};
+try{
+  const saved = JSON.parse(localStorage.getItem(LS_KEY)||"null");
+  if(saved){ S.q=saved.q||""; S.suites=new Set(saved.suites||[]);
+    S.sevs=new Set(saved.sevs||[]); S.defectOnly=!!saved.defectOnly;
+    S.open=new Set(saved.open||[]); S.mods=new Set(saved.mods||[]); }
+}catch(e){}
+function save(){
+  try{localStorage.setItem(LS_KEY, JSON.stringify({
+    q:S.q, suites:[...S.suites], sevs:[...S.sevs], defectOnly:S.defectOnly,
+    open:[...S.open].slice(-40), mods:[...S.mods]}));}catch(e){}
+}
+
+/* ---------- 工具 ---------- */
+const esc = s => String(s??"").replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function prioBadge(sev){
+  const [lbl, cls] = PRIO[sev]||PRIO.normal;
+  return `<span class="prio ${cls}" title="${esc(PRIO_NAME[sev]||"")}">${lbl}</span>`;
+}
+const methods = new Set(["GET","POST","PUT","PATCH","DELETE"]);
+function methodTag(m){
+  const up = String(m||"").toUpperCase();
+  if(!methods.has(up)) return `<span class="mth">${esc(m)}</span>`;
+  return `<span class="mth ${up}">${up}</span>`;
+}
+const SVG_CARET = '<svg class="caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+
+/* ---------- 全量展平 ---------- */
+const FLAT = [];
+DATA.suites.forEach(su => su.modules.forEach(m => m.cases.forEach(c => {
+  FLAT.push({su, m, c});
+})));
+
+function caseVisible({su,m,c}){
+  if(S.suites.size && !S.suites.has(su.key)) return false;
+  if(S.sevs.size && !S.sevs.has(c.severity)) return false;
+  if(S.defectOnly && !c.xfail) return false;
+  if(S.q){
+    const hay = [c.id,c.name,c.story,c.doc,c.feature,
+      ...(c.marks||[]),m.code,m.name,su.name].join(" ").toLowerCase();
+    if(!hay.includes(S.q)) return false;
+  }
+  return true;
+}
+
+/* ---------- 头部统计 ---------- */
+(function header(){
+  const st = DATA.stats;
+  document.getElementById("subline").textContent =
+    DATA.project + " · 覆盖 " + st.total_funcs + " 个测试函数 / "
+    + st.total_exec + " 条可执行用例 / " + DATA.suites.length + " 个测试套件";
+  document.getElementById("gen-time").textContent =
+    "清单生成时间：" + st.generated + "　·　工具：tools/export_case_inventory.py";
+  const chips = [
+    ["套件", DATA.suites.length, ""],
+    ["测试函数", st.total_funcs, ""],
+    ["可执行用例", st.total_exec, ""],
+    ["YAML 矩阵用例", st.yaml_total, ""],
+  ];
+  if(st.xfail) chips.push(["已知缺陷 xfail", st.xfail, "warn"]);
+  if(st.skips) chips.push(["显式跳过条件", st.skips, "neutral"]);
+  if(st.collection_errors.length)
+    chips.push(["收集报错文件 " + st.collection_errors.length, "", "neutral"]);
+  document.getElementById("metachips").innerHTML = chips.map(c =>
+    `<span class="chip ${c[2]}">${esc(c[0])} ${c[1]!==""?("<b>"+c[1]+"</b>"):""}</span>`
+  ).join("").replace(/<\/b><b>/g,"</b> <b>");
+
+  const sevRow = Object.entries(st.sev_exec).sort(
+    (a,b)=> (PRIO[a[0]]||PRIO.normal)[0].localeCompare((PRIO[b[0]]||PRIO.normal)[0]));
+  const sevTotal = sevRow.reduce((s,x)=>s+x[1],0)||1;
+  let sevBar = '<div style="display:flex;height:10px;border-radius:6px;overflow:hidden;margin-top:12px">';
+  sevBar += sevRow.map(([sev,n])=>{
+    const [lbl,cls]=PRIO[sev]||PRIO.normal;
+    const colors={p0:"var(--p0)",p1:"var(--p1)",p2:"var(--p2)",p3:"var(--p3)",p4:"var(--p4)"};
+    return `<div title="${esc(PRIO_NAME[sev]||sev)} ${n} 条" style="flex:${n/sevTotal};background:${colors[cls]}"></div>`;
+  }).join("") + "</div>";
+  sevBar += '<div style="display:flex;gap:14px;flex-wrap:wrap;margin-top:7px;font-size:12px;color:var(--ink-2)">'
+    + sevRow.map(([sev,n])=>{
+      const [lbl,cls]=PRIO[sev]||PRIO.normal;
+      return `<span><span class="prio ${cls}" style="margin-right:5px">${lbl}</span>${esc(PRIO_NAME[sev]||sev)} · ${n} 条</span>`;
+    }).join("") + "</div>";
+
+  const cards = [
+    `<div class="stat"><div class="num">${st.total_exec}</div><div class="lbl">可执行用例总数</div></div>`,
+    `<div class="stat"><div class="num">${st.total_funcs}</div><div class="lbl">测试函数</div></div>`,
+    `<div class="stat"><div class="num">${st.yaml_total}</div><div class="lbl">YAML 数据驱动用例</div></div>`,
+  ];
+  if(st.xfail) cards.push(`<div class="stat warn"><div class="num">${st.xfail}</div><div class="lbl">已知缺陷（xfail 固化）</div></div>`);
+  if(st.skips) cards.push(`<div class="stat ok"><div class="num">${st.skips}</div><div class="lbl">显式跳过条件用例</div></div>`);
+  cards.push(`<div class="stat" style="grid-column:span 2;min-width:100%">
+    <div class="lbl" style="margin:0"><b style="color:var(--ink)">优先级分布（按可执行条数）</b></div>${sevBar}</div>`);
+  document.getElementById("stats").innerHTML = cards.join("");
+})();
+
+/* ---------- 过滤器 ---------- */
+(function filters(){
+  const suBox = document.getElementById("suite-filter");
+  DATA.stats.per_suite.forEach(p=>{
+    const b=document.createElement("button");
+    b.className="fbtn"; b.dataset.suite=p.key;
+    b.innerHTML = esc(p.name)+` <span class="n">${p.exec}</span>`;
+    b.onclick=()=>{ S.suites.has(p.key)?S.suites.delete(p.key):S.suites.add(p.key); render(); };
+    suBox.appendChild(b);
+  });
+  const sevBox=document.getElementById("sev-filter");
+  Object.keys(PRIO).forEach(sev=>{
+    const n=(DATA.stats.sev_exec[sev]||0); if(!n) return;
+    const [lbl,cls]=PRIO[sev];
+    const b=document.createElement("button");
+    b.className="fbtn "+cls; b.dataset.sev=sev;
+    b.innerHTML=`${lbl} <span class="n">${n}</span>`;
+    b.onclick=()=>{ S.sevs.has(sev)?S.sevs.delete(sev):S.sevs.add(sev); render(); };
+    sevBox.appendChild(b);
+  });
+  document.getElementById("n-defect").textContent=DATA.stats.xfail_exec;
+  document.getElementById("fx-defect").onclick=()=>{
+    S.defectOnly=!S.defectOnly; render(); };
+  document.getElementById("fx-reset").onclick=()=>{
+    S={q:"",suites:new Set(),sevs:new Set(),defectOnly:false,
+       open:new Set(),mods:new Set()};
+    document.getElementById("q").value="";
+    render(); };
+  const qi=document.getElementById("q");
+  qi.value=S.q;
+  qi.addEventListener("input",()=>{ S.q=qi.value.trim().toLowerCase(); render(); });
+})();
+
+function syncFilterButtons(){
+  document.querySelectorAll("#suite-filter .fbtn").forEach(b=>
+    b.classList.toggle("on", S.suites.has(b.dataset.suite)));
+  document.querySelectorAll("#sev-filter .fbtn").forEach(b=>
+    b.classList.toggle("on", S.sevs.has(b.dataset.sev)));
+  document.getElementById("fx-defect").classList.toggle("on", S.defectOnly);
+}
+
+/* ---------- 主体渲染 ---------- */
+function caseRow(entry){
+  const {su,m,c}=entry;
+  const open=S.open.has(c.id);
+  const title=c.story
+    || ((c.cls ? c.cls.replace(/^Test/,"")+" · " : "") + c.name);
+  const firstDoc=(c.doc||"").split(/\n\s*\n/)[0]||"";
+  const n=c.executable;
+  const tags=[];
+  if(c.xfail) tags.push(`<span class="tag xf">已知缺陷</span>`);
+  if(c.skip) tags.push(`<span class="tag sk">跳过条件</span>`);
+  if(c.estimated) tags.push(`<span class="tag est">条数估算</span>`);
+  (c.marks||[]).forEach(t=>{ if(!["api","security"].includes(t)) tags.push(`<span class="tag">${esc(t)}</span>`); });
+  if(c.params.length) tags.push(`<span class="tag">参数化×${c.params.length}</span>`);
+  let html=`<tr class="case ${open?"open":""}" data-id="${esc(c.id)}">
+    <td class="cid">${esc(c.id)}</td>
+    <td><div class="ctitle">${esc(title)}</div>${firstDoc?`<div class="cdesc">${esc(firstDoc)}</div>`:""}</td>
+    <td>${prioBadge(c.severity)}</td>
+    <td><div class="tags">${tags.join("")||'<span class="tag">—</span>'}</div></td>
+    <td class="cnum">${n>1?`<b>${n}</b> 条`:n+" 条"}</td>
+  </tr>`;
+  if(open){
+    const p=c.params.map(p=>`<code>${esc(p.argnames)}：${p.count?p.count+" 组":""}${p.ids&&p.ids.length?"（"+p.ids.map(esc).join("、")+"）":""}</code>`).join("");
+    html+=`<tr class="detail"><td colspan="5"><div class="detail-box">
+      <div class="detail-grid">
+        <div class="kv"><b>pytest 节点</b><code>${esc(c.nodeid)}</code></div>
+        <div class="kv"><b>源码位置</b><code>${esc(c.nodeid.split("::")[0])}:${c.line}</code></div>
+        <div class="kv"><b>功能域</b>${esc(c.feature||"—")} ${c.epic?`· ${esc(c.epic)}`:""}</div>
+        <div class="kv"><b>依赖 fixtures</b>${(c.fixtures||[]).map(f=>`<code>${esc(f)}</code>`).join("")}</div>
+        ${p?`<div class="kv" style="grid-column:1/-1"><b>参数化</b>${p}</div>`:""}
+      </div>
+      ${c.doc?`<div class="doc">${esc(c.doc)}</div>`:""}
+      ${c.xfail?`<div class="xf-box"><b>已知缺陷（xfail）</b>　${c.xfail.strict?"strict=True（修复后 XPASS 会变红提醒去掉标记）":"strict=False"}<br>${esc(c.xfail.reason)}</div>`:""}
+      ${c.skip?`<div class="xf-box" style="background:var(--p1-bg);color:var(--p1)"><b>跳过条件</b>　${esc(c.skip.reason||"（见源码）")}</div>`:""}
+    </div></td></tr>`;
+  }
+  return html;
+}
+
+function render(){
+  syncFilterButtons(); save();
+  const vis = FLAT.filter(caseVisible);
+  const perSuite = new Map();
+  vis.forEach(e=>{
+    if(!perSuite.has(e.su.key)) perSuite.set(e.su.key,{su:e.su,mods:new Map(),total:0});
+    const g=perSuite.get(e.su.key); g.total+=e.c.executable;
+    if(!g.mods.has(e.m)) g.mods.set(e.m,[]); g.mods.get(e.m).push(e);
+  });
+  document.getElementById("count-hint").textContent =
+    `显示 ${vis.reduce((s,e)=>s+e.c.executable,0)} / ${DATA.stats.total_exec} 条`;
+
+  const main=document.getElementById("main");
+  if(!vis.length){ main.innerHTML='<div class="panel"><div class="empty">没有匹配的用例</div></div>'; renderPanels(); return; }
+
+  let html="";
+  DATA.suites.forEach(su=>{
+    const g=perSuite.get(su.key);
+    if(!g) return;
+    const suiteVisibleFuncs=g.mods.size;
+    const suiteExec=g.total;
+    html+=`<section class="suite" id="suite-${su.key}">
+      <div class="suite-head">
+        <h2>${esc(su.name)}</h2>
+        <span class="tag">${su.key}</span>
+        <span class="tag">${suiteVisibleFuncs} 个模块</span>
+        <span class="tag">${suiteExec} 条可执行</span>
+      </div>
+      <div class="suite-desc">${esc(su.desc)}</div>`;
+    [...g.mods.keys()].sort((a,b)=>a.file<b.file?-1:1).forEach(m=>{
+      const entries=g.mods.get(m);
+      const modOpen = !S.mods.size || S.mods.has(m.file);
+      html+=`<div class="module ${modOpen?"open":""}" id="mod-${m.code}">
+        <div class="mod-head" data-file="${esc(m.file)}">
+          ${SVG_CARET}
+          <span class="mod-code">${esc(m.code)}</span>
+          <span class="mod-file">${esc(m.name)}</span>
+          <span class="mod-count">${entries.length} 条用例</span>
+        </div>
+        <div class="mod-body">
+          ${m.doc?`<div class="mod-doc">${esc(m.doc)}</div>`:""}
+          ${m.collection_error?`<div class="mod-doc" style="color:var(--warn)">⚠ 此文件在收集时报错，可执行条数为估算值</div>`:""}
+          <table>
+            <thead><tr><th style="width:120px">编号</th><th>用例</th>
+              <th style="width:52px">优先级</th><th style="width:180px">标签</th>
+              <th style="width:70px;text-align:right">条数</th></tr></thead>
+            <tbody>${entries.map(caseRow).join("")}</tbody>
+          </table>
+        </div>
+      </div>`;
+    });
+    html+="</section>";
+  });
+  main.innerHTML=html;
+  renderPanels();
+
+  main.querySelectorAll(".case").forEach(tr=>{
+    tr.addEventListener("click",()=>{
+      const id=tr.dataset.id;
+      S.open.has(id)?S.open.delete(id):S.open.add(id); render();
+    });
+  });
+  main.querySelectorAll(".mod-head").forEach(h=>{
+    h.addEventListener("click",()=>{
+      const f=h.dataset.file;
+      S.mods.has(f)?S.mods.delete(f):S.mods.add(f);
+      h.parentElement.classList.toggle("open");
+      save();
+    });
+  });
+}
+
+/* ---------- 缺陷 / 跳过 / 矩阵面板 ---------- */
+function renderPanels(){
+  /* 先移除旧面板（它们不在搜索过滤范围内） */
+  document.querySelectorAll(".panel-extra").forEach(x=>x.remove());
+  const main=document.getElementById("main");
+  let html="";
+
+  if(DATA.xfail_cases.length){
+    html+=`<div class="panel panel-extra" id="defects">
+      <h3><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--p0)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
+        已知缺陷（xfail 固化）<span class="n">${DATA.xfail_cases.length} 条</span></h3>
+      <div class="pdesc">以下缺陷在 GitLab CE ${esc("19.0.1")} 上实测确认，用 xfail 固化在用例中：<b>strict</b> 表示修复后用例会变红、提醒摘掉标记；<b>非 strict</b> 表示概率性竞态。</div>
+      <table><thead><tr><th style="width:130px">编号</th><th style="width:200px">用例</th>
+        <th>缺陷说明（实测证据）</th><th style="width:70px">模式</th></tr></thead><tbody>
+      ${DATA.xfail_cases.map(x=>`<tr><td class="cid">${esc(x.id)}</td>
+        <td><div class="ctitle">${esc(x.title)} ${x.exec>1?`<span class="tag xf">${x.exec} 条</span>`:""}</div>
+        <div style="font-size:11.5px;color:var(--ink-3)">${esc(x.module)}</div></td>
+        <td class="reason">${esc(x.reason)}</td>
+        <td>${x.conditional?'<span class="badge cond">条件</span>':
+          (x.strict===true?'<span class="badge strict">strict</span>':
+           x.strict===false?'<span class="badge loose">非 strict</span>':'<span class="badge loose">默认</span>')}</td></tr>`).join("")}
+      </tbody></table></div>`;
+  }
+  if(DATA.skip_cases.length){
+    html+=`<div class="panel panel-extra">
+      <h3><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--p1)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+        显式跳过条件 <span class="n">${DATA.skip_cases.length} 条</span></h3>
+      <div class="pdesc">在什么条件下不执行——跳过是有语义的：缺第二身份、实例未配置某能力时，相关用例没有验证价值。</div>
+      <table><thead><tr><th style="width:130px">编号</th><th style="width:240px">用例</th>
+        <th>跳过原因</th></tr></thead><tbody>
+      ${DATA.skip_cases.map(x=>`<tr><td class="cid">${esc(x.id)}</td>
+        <td class="ctitle" style="font-size:13px">${esc(x.title)}</td>
+        <td class="reason">${esc(x.reason||"（见源码条件）")}</td></tr>`).join("")}
+      </tbody></table></div>`;
+  }
+  if(DATA.matrices.length){
+    html+=`<div class="panel panel-extra" id="matrices">
+      <h3><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M3 15h18"/><path d="M9 3v18"/></svg>
+        数据驱动矩阵（YAML）<span class="n">${DATA.stats.yaml_total} 条</span></h3>
+      <div class="pdesc">由 <code style="font-family:var(--mono)">tests/api/test_data_driven.py</code> 经 <code style="font-family:var(--mono)">cases</code> 标记装载执行；期望值全部来自实测。YAML 数据写坏由框架自检（UNIT-DATA-CHK）拦截，不会静默少跑。</div>`;
+    DATA.matrices.forEach(mx=>{
+      html+=`<div style="padding:4px 16px 14px">
+        <div style="display:flex;align-items:center;gap:10px;margin:10px 0 6px">
+          <span class="mod-code">${esc(mx.file.split("/").pop())}</span>
+          <b style="font-size:14px">${esc(mx.title)}</b>
+          <span style="font-size:12px;color:var(--ink-3)">${mx.cases.length} 条</span>
+        </div>
+        <table><thead><tr><th style="width:150px">用例 ID</th><th style="width:70px">方法</th>
+          <th>目标与说明</th><th style="width:90px">期望状态码</th><th style="width:60px">说明匹配</th></tr></thead><tbody>
+        ${mx.cases.map(c=>`<tr><td class="cid">${esc(c.id)}</td>
+          <td>${methodTag(c.method)}</td>
+          <td><div class="pcell">${esc(c.path)}</div>
+            <div style="font-size:12.5px;color:var(--ink-2)">${esc(c.desc)}</div>
+            ${c.skip?'<span class="tag sk" style="margin-top:3px;display:inline-block">跳过</span>':""}</td>
+          <td class="cnum" style="text-align:left">${Array.isArray(c.expect)?esc(c.expect.join(" / ")):esc(c.expect)}</td>
+          <td>${c.expect_msg?'<span class="tag">子串匹配</span>':'<span class="tag">—</span>'}</td></tr>`).join("")}
+        </tbody></table></div>`;
+    });
+    html+="</div>";
+  }
+  main.insertAdjacentHTML("beforeend", html);
+}
+
+/* ---------- 侧边导航 ---------- */
+(function nav(){
+  const nav=document.getElementById("sidenav");
+  let html='<div class="nav-title">套件</div>';
+  DATA.stats.per_suite.forEach(p=>{
+    html+=`<a href="#suite-${p.key}"><span>${esc(p.name)}</span><span class="n">${p.exec}</span></a>`;
+  });
+  if(DATA.xfail_cases.length)
+    html+=`<a href="#defects"><span>已知缺陷</span><span class="n">${DATA.xfail_cases.length}</span></a>`;
+  if(DATA.matrices.length)
+    html+=`<a href="#matrices"><span>数据矩阵</span><span class="n">${DATA.stats.yaml_total}</span></a>`;
+  nav.innerHTML=html;
+})();
+
+render();
+</script>
+</body>
+</html>

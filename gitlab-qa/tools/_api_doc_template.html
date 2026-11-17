@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GitLab CE 19.0.1 · 接口文档</title>
+<style>
+:root{
+  --bg:#f5f6f8; --panel:#ffffff; --ink:#1f2430; --ink-2:#5a6474; --ink-3:#8a93a5;
+  --line:#e4e7ec; --accent:#3b6ef5; --accent-soft:#eaf0fe;
+  --m-get:#067647; --m-get-bg:#e7f6ee; --m-post:#3b6ef5; --m-post-bg:#eaf0fe;
+  --m-put:#b54708; --m-put-bg:#fef0d7; --m-patch:#6941c6; --m-patch-bg:#f2ecfd;
+  --m-del:#d92d20; --m-del-bg:#fee4e2; --m-head:#667085; --m-head-bg:#eceef1;
+  --ok:#067647; --ok-bg:#e7f6ee; --warn:#b54708; --warn-bg:#fef4e6;
+  --qa:#0e9384; --qa-bg:#d9f7f0;
+  --mono:ui-monospace,"Cascadia Mono",Consolas,"Courier New",monospace;
+  --radius:10px; --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.1);
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#10141c; --panel:#181e29; --ink:#e8ecf3; --ink-2:#a7b0c0; --ink-3:#78829a;
+    --line:#2a3244; --accent:#6b93ff; --accent-soft:#1d2740;
+    --m-get:#4ade9e; --m-get-bg:#12291d; --m-post:#6b93ff; --m-post-bg:#1c2740;
+    --m-put:#ffb763; --m-put-bg:#382a14; --m-patch:#b692f7; --m-patch-bg:#2b2140;
+    --m-del:#ff6b5e; --m-del-bg:#3a1c1a; --m-head:#9aa5bb; --m-head-bg:#232a38;
+    --ok:#4ade9e; --ok-bg:#12291d; --warn:#ffb763; --warn-bg:#332512;
+    --qa:#3ecfb8; --qa-bg:#123430;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","PingFang SC",
+  "Microsoft YaHei",sans-serif;font-size:15px;line-height:1.6}
+
+header{background:var(--panel);border-bottom:1px solid var(--line);padding:28px 24px 20px}
+.wrap{max-width:1320px;margin:0 auto}
+.head-row{display:flex;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.logo{width:44px;height:44px;border-radius:11px;background:var(--accent);
+  color:#fff;display:flex;align-items:center;justify-content:center;flex:none}
+h1{font-size:22px;font-weight:700;letter-spacing:.3px}
+.sub{color:var(--ink-2);font-size:13px;margin-top:2px}
+.meta-line{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+.chip{display:inline-flex;align-items:center;gap:6px;background:var(--accent-soft);
+  color:var(--accent);border-radius:20px;padding:4px 12px;font-size:12.5px;font-weight:600}
+.chip.neutral{background:var(--m-head-bg);color:var(--ink-2)}
+.chip.qa{background:var(--qa-bg);color:var(--qa)}
+
+.toolbar{position:sticky;top:0;z-index:50;background:var(--panel);
+  border-bottom:1px solid var(--line);padding:10px 24px;
+  box-shadow:0 2px 8px rgba(16,24,40,.05)}
+.toolbar-in{max-width:1320px;margin:0 auto;display:flex;gap:10px;
+  flex-wrap:wrap;align-items:center}
+.search{flex:1 1 260px;display:flex;align-items:center;gap:8px;
+  border:1px solid var(--line);border-radius:8px;padding:7px 12px;background:var(--bg)}
+.search input{border:none;outline:none;background:transparent;color:var(--ink);
+  width:100%;font-size:14px}
+.search svg{flex:none;opacity:.55}
+.fgroup{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+.fbtn{border:1px solid var(--line);background:var(--panel);color:var(--ink-2);
+  border-radius:20px;padding:5px 13px;font-size:12.5px;cursor:pointer;
+  user-select:none;white-space:nowrap;font-weight:500;transition:all .15s}
+.fbtn:hover{border-color:var(--accent);color:var(--accent)}
+.fbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:600}
+.fbtn.on.mget{background:var(--m-get);border-color:var(--m-get)}
+.fbtn.on.mpost{background:var(--m-post);border-color:var(--m-post)}
+.fbtn.on.mput{background:var(--m-put);border-color:var(--m-put)}
+.fbtn.on.mpatch{background:var(--m-patch);border-color:var(--m-patch)}
+.fbtn.on.mdel{background:var(--m-del);border-color:var(--m-del)}
+.fbtn.on.mhead{background:var(--m-head);border-color:var(--m-head)}
+.fbtn.on.qa{background:var(--qa);border-color:var(--qa)}
+.fbtn .n{opacity:.65;margin-left:4px;font-size:11.5px}
+.fdivider{width:1px;height:20px;background:var(--line);margin:0 2px}
+.count-hint{font-size:12.5px;color:var(--ink-3);white-space:nowrap}
+
+.layout{max-width:1320px;margin:0 auto;display:grid;
+  grid-template-columns:1fr;gap:20px;padding:20px 24px 60px}
+@media(min-width:1024px){
+  .layout{grid-template-columns:260px 1fr;align-items:start}
+  .sidenav{position:sticky;top:64px;max-height:calc(100vh - 84px);
+    overflow-y:auto;scrollbar-width:thin;display:block}
+}
+.sidenav{display:none}
+.nav-title{font-size:11px;color:var(--ink-3);text-transform:uppercase;
+  letter-spacing:1px;margin:14px 0 6px;font-weight:700}
+.sidenav a{display:flex;justify-content:space-between;gap:8px;
+  padding:5px 10px;border-radius:7px;color:var(--ink-2);font-size:13px}
+.sidenav a:hover{background:var(--accent-soft);color:var(--accent)}
+.sidenav a .n{color:var(--ink-3);font-size:12px;font-variant-numeric:tabular-nums}
+
+section[id],div[id].panel{scroll-margin-top:72px}
+.suite{margin-bottom:34px}
+.suite-head{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;
+  padding-bottom:8px;border-bottom:2px solid var(--accent);margin-bottom:14px}
+.suite-head h2{font-size:19px;font-weight:700}
+.suite-head .tag{font-size:12px;color:var(--ink-3);font-family:var(--mono)}
+.suite-desc{color:var(--ink-2);font-size:13.5px;margin:-6px 0 14px;max-width:860px}
+
+.module{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);margin-bottom:16px;overflow:hidden;box-shadow:var(--shadow)}
+.mod-head{display:flex;align-items:center;gap:10px;padding:12px 16px;
+  cursor:pointer;user-select:none}
+.mod-head:hover{background:var(--accent-soft)}
+.mod-code{font-family:var(--mono);font-size:11.5px;font-weight:700;
+  background:var(--accent-soft);color:var(--accent);padding:2px 8px;
+  border-radius:6px;white-space:nowrap}
+.mod-file{font-weight:600;font-size:14px}
+.mod-count{margin-left:auto;font-size:12px;color:var(--ink-3);white-space:nowrap}
+.mod-count .qa{color:var(--qa);font-weight:700}
+.mod-body{display:none}
+.module.open .mod-body{display:block}
+.module.open .caret{transform:rotate(90deg)}
+.caret{transition:transform .18s;flex:none;opacity:.5}
+
+table{width:100%;border-collapse:collapse}
+th{font-size:11.5px;color:var(--ink-3);text-align:left;font-weight:600;
+  padding:8px 12px;border-bottom:1px solid var(--line);white-space:nowrap;
+  letter-spacing:.4px;text-transform:uppercase}
+td{padding:9px 12px;border-bottom:1px solid var(--line);vertical-align:top}
+tr.case{cursor:pointer}
+tr.case:hover td{background:var(--accent-soft)}
+tr.case.open td{background:var(--accent-soft)}
+.cid{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+.cpath{font-family:var(--mono);font-size:12.5px;word-break:break-all}
+.csum{color:var(--ink-2);font-size:12.5px;margin-top:2px}
+.mth{display:inline-block;font-family:var(--mono);font-size:11px;font-weight:700;
+  padding:2px 9px;border-radius:6px;white-space:nowrap}
+.mth.GET{background:var(--m-get-bg);color:var(--m-get)}
+.mth.POST{background:var(--m-post-bg);color:var(--m-post)}
+.mth.PUT{background:var(--m-put-bg);color:var(--m-put)}
+.mth.PATCH{background:var(--m-patch-bg);color:var(--m-patch)}
+.mth.DELETE{background:var(--m-del-bg);color:var(--m-del)}
+.mth.HEAD{background:var(--m-head-bg);color:var(--m-head)}
+.codes{font-family:var(--mono);font-size:12px;color:var(--ink-2)}
+.tag.qa-cov{background:var(--qa-bg);color:var(--qa);font-weight:700}
+
+tr.detail td{background:var(--bg);padding:14px 16px}
+.detail-box{border-left:3px solid var(--accent);padding-left:14px}
+.doc{font-size:13px;color:var(--ink-2);white-space:pre-wrap;margin-bottom:10px;
+  padding:10px 12px;background:var(--panel);border:1px solid var(--line);
+  border-radius:8px;max-height:220px;overflow-y:auto}
+.subtable-title{font-size:11px;color:var(--ink-3);font-weight:700;
+  text-transform:uppercase;letter-spacing:.5px;margin:10px 0 4px}
+.kv{font-size:12.5px;padding:3px 0;border-bottom:1px dashed var(--line);
+  display:grid;grid-template-columns:220px 70px 60px 1fr;gap:8px;align-items:baseline}
+@media(max-width:720px){.kv{grid-template-columns:140px 60px 50px 1fr}}
+.kv code{font-family:var(--mono);font-size:12px;background:var(--panel);
+  border:1px solid var(--line);padding:1px 6px;border-radius:4px;word-break:break-all}
+.kv .t{color:var(--ink-3);font-family:var(--mono);font-size:11.5px}
+.kv .r{color:var(--warn);font-size:11px;font-weight:700}
+.kv .d{color:var(--ink-2);font-size:12px}
+.req{color:var(--warn);font-weight:700}
+
+.panel{background:var(--panel);border:1px solid var(--line);
+  border-radius:var(--radius);margin-bottom:18px;box-shadow:var(--shadow);padding:0 20px 16px}
+.panel h3{font-size:16px;padding:14px 0 6px;display:flex;align-items:center;gap:8px}
+.panel p{font-size:13.5px;color:var(--ink-2);margin:8px 0}
+.panel p b{color:var(--ink)}
+.panel code{font-family:var(--mono);font-size:12.5px;background:var(--bg);
+  border:1px solid var(--line);padding:1px 6px;border-radius:4px;word-break:break-all}
+.panel table{margin:10px 0}
+.panel table td,.panel table th{font-size:13px}
+.panel table th{background:transparent}
+.ptable td:first-child{white-space:nowrap;font-family:var(--mono);font-size:12.5px}
+.note{padding:10px 14px;border-radius:8px;background:var(--warn-bg);
+  color:var(--warn);font-size:13px;margin:10px 0}
+.note.ok{background:var(--qa-bg);color:var(--qa)}
+.note code{background:transparent;border:none;color:inherit;padding:0}
+
+footer{border-top:1px solid var(--line);background:var(--panel);
+  padding:20px 24px;color:var(--ink-3);font-size:12.5px}
+footer .wrap{display:flex;flex-direction:column;gap:6px}
+
+.empty{padding:40px;text-align:center;color:var(--ink-3);font-size:14px}
+.hidden{display:none!important}
+@media(max-width:1023px){
+  header{padding:20px 16px 16px}
+  .layout{padding:16px 12px 40px}
+  .toolbar-in{gap:8px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="wrap">
+    <div class="head-row">
+      <div class="logo">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7c0-1.7 1.3-3 3-3h10c1.7 0 3 1.3 3 3v10c0 1.7-1.3 3-3 3H7c-1.7 0-3-1.3-3-3z"/><path d="M9 10v4M15 10v4"/></svg>
+      </div>
+      <div>
+        <h1>GitLab CE 19.0.1 · 接口文档</h1>
+        <div class="sub" id="subline"></div>
+      </div>
+    </div>
+    <div class="meta-line" id="metachips"></div>
+  </div>
+</header>
+
+<div class="toolbar">
+  <div class="toolbar-in">
+    <div class="search">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/></svg>
+      <input id="q" type="search" placeholder="搜索路径、编号、接口说明…">
+    </div>
+    <div class="fgroup" id="m-filter"></div>
+    <div class="fdivider"></div>
+    <div class="fgroup">
+      <button class="fbtn qa" id="fx-qa">仅看 QA 已覆盖</button>
+      <button class="fbtn" id="fx-expand">全部展开</button>
+      <button class="fbtn" id="fx-reset">重置</button>
+    </div>
+    <span class="count-hint" id="count-hint"></span>
+  </div>
+</div>
+
+<div class="layout">
+  <nav class="sidenav" id="sidenav"></nav>
+  <main id="main">
+
+  <!-- ======================= 通用约定 ======================= -->
+  <section class="suite" id="sec-overview">
+    <div class="suite-head"><h2>通用约定</h2>
+      <span class="tag">所有接口共同遵守的基础规范（均经本实例实测）</span></div>
+
+    <div class="panel">
+      <h3>1 · 基本信息</h3>
+      <table class="ptable">
+        <tr><td>实例地址</td><td><code id="base-url"></code></td></tr>
+        <tr><td>接口前缀</td><td><code id="api-prefix"></code> —— 文档内路径均省略前缀，调用时须补全</td></tr>
+        <tr><td>版本</td><td><code>GitLab CE 19.0.1</code>（REST API v4）</td></tr>
+        <tr><td>数据格式</td><td>请求与响应均为 <code>application/json</code>（URL 编码的表单请求体亦被接受，实测 201）</td></tr>
+        <tr><td>时间格式</td><td>ISO 8601（如 <code>2026-11-16T08:30:00.000Z</code>）</td></tr>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3>2 · 鉴权</h3>
+      <p>所有需鉴权的接口使用个人访问令牌，通过请求头 <code>PRIVATE-TOKEN: &lt;token&gt;</code> 传递；
+      也支持 <code>Authorization: Bearer &lt;oauth-token&gt;</code>。
+      <b>缺少或无效的令牌返回 401</b>；令牌有效但权限不足返回 403。
+      两者不可混用——401 表示「不知道你是谁」，403 表示「知道你是谁，但你不能做」。</p>
+      <p><b>防枚举设计：</b>对无权限访问的私有资源，实例刻意返回 <code>404</code> 而非 403，
+      因为 403 会泄露「该资源存在」。所以调用方校验时应接受 403/404，但绝不能接受 200——
+      200 即越权成功。</p>
+      <table class="ptable">
+        <tr><th>状态</th><th>含义</th><th>调用方应对</th></tr>
+        <tr><td>401</td><td>未认证 / Token 失效</td><td>刷新凭据后重试，不要重算业务逻辑</td></tr>
+        <tr><td>403</td><td>已认证但无权限</td><td>提示权限不足；不要提示重新登录</td></tr>
+        <tr><td>404</td><td>资源不存在 <b>或</b> 无权限访问</td><td>与 403 等同对待，除非确认公开资源</td></tr>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3>3 · 分页</h3>
+      <p>列表接口统一支持 <code>page</code> / <code>per_page</code> 查询参数，
+      并在响应头中回传完整分页信息：</p>
+      <table class="ptable">
+        <tr><th>响应头</th><th>含义</th></tr>
+        <tr><td><code>X-Page</code></td><td>当前页码（必须与请求的 page 一致，否则为回显缺陷）</td></tr>
+        <tr><td><code>X-Per-Page</code></td><td>每页条数（实测会被夹到 [1,100]）</td></tr>
+        <tr><td><code>X-Total</code></td><td>总条数</td></tr>
+        <tr><td><code>X-Total-Pages</code></td><td>总页数 = ⌈X-Total / X-Per-Page⌉</td></tr>
+        <tr><td><code>X-Next-Page</code></td><td>下一页码（无下一页时缺失）——翻页应以此推进而非 page+1</td></tr>
+        <tr><td><code>X-Prev-Page</code></td><td>上一页码（无上一页时缺失）</td></tr>
+      </table>
+      <div class="note">本实例实测边界：<code>per_page=0</code> → <b>400</b>；
+        <code>per_page=-1</code> → 200 且<b>静默回落 20</b>；
+        <code>per_page=101 / 1000</code> → 200 且被夹到 <b>100</b>。
+        <code>page=0 / page=-1</code> 均按第一页处理。</div>
+    </div>
+
+    <div class="panel">
+      <h3>4 · 错误结构与状态码语义</h3>
+      <p>错误响应体为 JSON：<code>{"message": "&lt;原因&gt;"}</code>（部分接口为
+      <code>{"error": ...}</code>）。校验类 400 的 message 会指出具体字段
+      （如 <code>title can't be blank</code> / <code>name has already been taken</code>）。</p>
+      <table class="ptable">
+        <tr><th>状态码</th><th>语义</th><th>本实例实测要点</th></tr>
+        <tr><td>200 / 201 / 202 / 204</td><td>成功（创建 201；异步/删除标记 202；删除完成 204，部分接口删除返回 200）</td><td>同一资源不同版本对删除可能返回 200 或 204，客户端两者都要接受</td></tr>
+        <tr><td>400</td><td>参数校验失败 / 语义冲突</td><td>重复删除项目返回 400 “already been marked for deletion”，须当成功处理</td></tr>
+        <tr><td>401</td><td>未认证</td><td>伪造 Token 即 401，不会降级为 200 空列表</td></tr>
+        <tr><td>403</td><td>已认证无权限</td><td>管理员端点对普通 Token 返回 403，匿名返回 401</td></tr>
+        <tr><td>404</td><td>资源不存在 / 防枚举遮蔽</td><td>对资源使用<b>不支持的方法</b>时也返回 404 而非 405（实测）</td></tr>
+        <tr><td>405 / 406</td><td>方法/状态不允许</td><td>MR 合并冲突 405、不可合并 406；未就绪时 409——合并接口的多义结果需按响应体判断</td></tr>
+        <tr><td>409</td><td>唯一性冲突</td><td>标签重名 409；里程碑允许同名，重复创建返回 400 “already being used”</td></tr>
+        <tr><td>415</td><td>媒体类型不支持</td><td>Content-Type: text/plain 提交 JSON 体 → 415（实测）</td></tr>
+        <tr><td>429</td><td>触发限流</td><td>响应含 RateLimit-* 头；客户端应按 Retry-After 退避</td></tr>
+        <tr><td>5xx</td><td>服务端缺陷</td><td>并发创建重名标签实测会冒出 500（已在 QA 用例中 xfail 固化）</td></tr>
+      </table>
+      <p>畸形 JSON 请求体 → 4xx 且带原因消息；<b>不存在</b>「裸 500」的合法路径。</p>
+    </div>
+
+    <div class="panel">
+      <h3>5 · 标识符与路径规则</h3>
+      <table class="ptable">
+        <tr><td><code>id</code></td><td>实例级全局唯一编号（如议题的 id 是实例全局的）</td></tr>
+        <tr><td><code>iid</code></td><td>项目/群组<b>内</b>编号（议题、MR 的对外键）；跨项目必撞，不要当全局键用</td></tr>
+        <tr><td>路径主键</td><td>项目/群组既接受数字 id，也接受 URL 编码路径（<code>namespace%2Fproject</code>）；含 <code>/</code> 的分支名、文件路径必须整段编码，否则会被解析成多级路径，表现是不明所以的 404</td></tr>
+      </table>
+    </div>
+
+    <div class="panel">
+      <h3>6 · 删除语义</h3>
+      <p>项目、群组默认走<b>延迟删除</b>：DELETE 后被标记（项目名被改写），
+      保留期内可查询、管理员可恢复，到期后物理清除。
+      本实例保留期经配置为 1 天（默认 30 天，实例可调）。</p>
+      <div class="note">实测边界：<code>permanently_remove</code> 立即清除<b>只对子群组</b>生效，
+        顶层群组返回 400 “only available for subgroups”；项目两步清除（DELETE 标记 →
+        <code>DELETE /projects/{id}?permanently_remove=true&full_path=…</code>），
+        且标记后项目 path 会被改写，第二步必须用改写后的 path，否则 400。</div>
+    </div>
+
+    <div class="panel">
+      <h3>7 · 已知行为偏差（QA 实测固化）</h3>
+      <p>以下行为在本实例上实测确认，调用方须绕开，QA 套件已用 xfail 固化跟踪：</p>
+      <p>· <b>非法日期静默丢弃</b>：议题/里程碑的 <code>due_date</code> 传 <code>2026-02-30</code>
+      等非法值返回 200/201，但回查为 <code>null</code>——调用方必须回查确认生效。</p>
+      <p>· <b>全角空格标题被接受</b>：<code>U+3000</code> 标题得 201，而半角空格/Tab/换行均 400。</p>
+      <p>· <b>weight 字段 CE 不存在</b>：议题 weight 为 Premium 功能，CE 实例只传 weight 会得到
+      400 “at least one parameter must be provided”，报错与 weight 无关。</p>
+      <p>· <b>并发重名竞态</b>：并发创建同名标签可能冒出 500；同名里程碑可绕过唯一校验落库两条。</p>
+    </div>
+
+    <div class="panel">
+      <h3>8 · 编号与标记说明</h3>
+      <p>接口编号：<code>{域码}-{模块码}-{序号}</code>，如 <code>PRJ-PRJ-001</code> 表示
+      「项目管理域 · 项目模块 · 第 1 个接口」。编号由生成器从官方 OpenAPI 规范自动编排，
+      随规范版本演进，引用时建议同时给出<b>方法 + 路径</b>。</p>
+      <p class="note ok">绿色「QA」标记 = gitlab-qa 自动化套件已对该接口建立自动化用例
+      （475 条可执行用例，见《测试用例清单》）；无标记表示尚未覆盖，可作为用例补充的候选。</p>
+    </div>
+  </section>
+
+  <!-- ======================= 接口域（JS 渲染） ======================= -->
+  <div id="domains"></div>
+  </main>
+</div>
+
+<footer>
+  <div class="wrap">
+    <div>数据来源：GitLab 官方 OpenAPI 规范 <code>doc/api/openapi/openapi_v2.yaml @ v19.0.1-ee</code>
+    （规范收录 <span id="spec-ops"></span> 个操作）＋「补充接口」模块
+    （官方规范未收录、本实例实测可用，<span id="supp-ops"></span> 条）；
+    「QA 已覆盖」由 gitlab-qa 框架源码 AST 提取；通用约定与状态码语义来自本实例实测。</div>
+    <div>注意：官方规范由 EE 仓库生成，少数 Premium/Ultimate 专属接口（如议题 weight）在 CE 实例上不可用，文档第 7 节已列出已实测到的差异。</div>
+    <div>重新生成：<code>python tools/export_api_doc.py</code>（先按脚本头部注释下载规范文件） · <span id="gen-time"></span></div>
+  </div>
+</footer>
+
+<script>
+"use strict";
+const DATA = __PAYLOAD__;
+const LS_KEY = "gqa-api-doc-v1";
+const METHOD_CLS = {GET:"GET",POST:"POST",PUT:"PUT",PATCH:"PATCH",DELETE:"DELETE",HEAD:"HEAD"};
+
+let S = {q:"", methods:new Set(), qaOnly:false, mods:new Set()};
+try{
+  const saved = JSON.parse(localStorage.getItem(LS_KEY)||"null");
+  if(saved){ S.q=saved.q||""; S.methods=new Set(saved.methods||[]);
+    S.qaOnly=!!saved.qaOnly; S.mods=new Set(saved.mods||[]); }
+}catch(e){}
+function save(){
+  try{localStorage.setItem(LS_KEY, JSON.stringify({
+    q:S.q, methods:[...S.methods], qaOnly:S.qaOnly, mods:[...S.mods]}));}catch(e){}
+}
+
+const esc = s => String(s??"").replace(/[&<>"']/g,
+  c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+function methodTag(m){
+  return `<span class="mth ${METHOD_CLS[m]||""}">${esc(m)}</span>`;
+}
+const SVG_CARET = '<svg class="caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"/></svg>';
+
+/* ---------- 头部 ---------- */
+(function header(){
+  const st = DATA.stats;
+  document.getElementById("subline").textContent =
+    "全部 REST 接口 · " + st.paths + " 个路径 / " + st.ops + " 个操作 / " +
+    st.modules + " 个接口模块 · QA 自动化已覆盖 " + st.qa_covered + " 条";
+  document.getElementById("base-url").textContent = DATA.base_url + DATA.api_prefix;
+  document.getElementById("api-prefix").textContent = DATA.api_prefix;
+  document.getElementById("gen-time").textContent = "文档生成时间：" + DATA.generated;
+  document.getElementById("spec-ops").textContent = st.spec_ops;
+  document.getElementById("supp-ops").textContent = st.supp_ops;
+  const methods = Object.entries(st.methods).sort((a,b)=>b[1]-a[1]);
+  document.getElementById("metachips").innerHTML =
+    `<span class="chip">${st.ops} 个接口操作</span>
+     <span class="chip neutral">${st.modules} 个模块</span>
+     <span class="chip qa">QA 覆盖 ${st.qa_covered}</span>` +
+    methods.map(m=>`<span class="chip neutral">${esc(m[0])} ${m[1]}</span>`).join("");
+})();
+
+/* ---------- 过滤器 ---------- */
+(function filters(){
+  const box = document.getElementById("m-filter");
+  const methods = Object.entries(DATA.stats.methods).sort((a,b)=>b[1]-a[1]);
+  methods.forEach(([m,n])=>{
+    const b=document.createElement("button");
+    b.className="fbtn m"+m.toLowerCase(); b.dataset.m=m;
+    b.innerHTML=`${esc(m)} <span class="n">${n}</span>`;
+    b.onclick=()=>{ S.methods.has(m)?S.methods.delete(m):S.methods.add(m); render(); };
+    box.appendChild(b);
+  });
+  const qa=document.getElementById("fx-qa");
+  qa.onclick=()=>{ S.qaOnly=!S.qaOnly; render(); };
+  document.getElementById("fx-expand").onclick=()=>{
+    const open = document.querySelectorAll(".module.open").length
+               < document.querySelectorAll(".module").length;
+    document.querySelectorAll(".module").forEach(x=>x.classList.toggle("open",open));
+  };
+  document.getElementById("fx-reset").onclick=()=>{
+    S={q:"",methods:new Set(),qaOnly:false,mods:new Set()};
+    document.getElementById("q").value=""; render();
+  };
+  const qi=document.getElementById("q");
+  qi.value=S.q;
+  qi.addEventListener("input",()=>{ S.q=qi.value.trim().toLowerCase(); render(); });
+})();
+
+function syncFilterButtons(){
+  document.querySelectorAll("#m-filter .fbtn").forEach(b=>
+    b.classList.toggle("on", S.methods.has(b.dataset.m)));
+  document.getElementById("fx-qa").classList.toggle("on", S.qaOnly);
+}
+
+/* ---------- 用例表 ---------- */
+function paramRows(ops){
+  const rows = [];
+  ops.forEach(o=>{
+    (o.params||[]).forEach(p=>rows.push(
+      `<div class="kv"><code>${esc(p.name)}</code><span class="t">${esc(p.in)} · ${esc(p.type||"-")}</span>`+
+      `<span class="r">${p.req?'<span class="req">必填</span>':'可选'}</span>`+
+      `<span class="d">${esc(p.desc)}</span></div>`));
+    if(o.body&&o.body.length){
+      rows.push('<div class="subtable-title">请求体字段（application/json）</div>');
+      o.body.forEach(b=>rows.push(
+        `<div class="kv"><code>${esc(b.name)}</code><span class="t">${esc(b.type||"-")}</span>`+
+        `<span class="r">${b.required?'<span class="req">必填</span>':'可选'}</span>`+
+        `<span class="d">${esc(b.desc)}</span></div>`));
+    }
+  });
+  return rows.join("") || '<div class="kv"><span class="d">无参数</span></div>';
+}
+
+function opRow(o){
+  const open = S.mods.has(o.id);
+  const codes = (o.resps||[]).map(r=>r.code).slice(0,6).join(" / ");
+  const entity = (o.resps||[]).map(r=>r.entity).filter(Boolean)[0];
+  let html=`<tr class="case ${open?"open":""}" data-id="${esc(o.id)}">
+    <td class="cid">${esc(o.id)}</td>
+    <td style="width:76px">${methodTag(o.m)}</td>
+    <td><div class="cpath">${esc(o.path)}</div>
+        <div class="csum">${esc(o.sum)}</div></td>
+    <td class="codes" style="width:110px">${esc(codes)}</td>
+    <td style="width:64px">${o.qa?'<span class="tag qa-cov">QA</span>':''}</td>
+  </tr>`;
+  if(open){
+    const respRows=(o.resps||[]).map(r=>
+      `<div class="kv"><code class="r">${esc(r.code)}</code><span class="t">${esc(r.entity||"-")}</span><span></span><span class="d">${esc(r.desc)}</span></div>`).join("");
+    html+=`<tr class="detail"><td colspan="5"><div class="detail-box">
+      ${o.desc?`<div class="doc">${esc(o.desc)}</div>`:""}
+      <div class="subtable-title">参数</div>
+      ${paramRows([o])}
+      <div class="subtable-title">响应</div>
+      ${respRows||'<div class="kv"><span class="d">规范未标注响应</span></div>'}
+    </div></td></tr>`;
+  }
+  return html;
+}
+
+function visibleOp(o){
+  if(S.methods.size && !S.methods.has(o.m)) return false;
+  if(S.qaOnly && !o.qa) return false;
+  if(S.q){
+    const hay=(o.id+" "+o.m+" "+o.path+" "+o.sum+" "+o.desc).toLowerCase();
+    if(!hay.includes(S.q)) return false;
+  }
+  return true;
+}
+
+function render(){
+  syncFilterButtons(); save();
+  let visTotal=0;
+  const box=document.getElementById("domains");
+  let html="";
+  DATA.domains.forEach(d=>{
+    let dHtml="", n=0;
+    d.modules.forEach(m=>{
+      const vis=m.ops.filter(visibleOp);
+      if(!vis.length) return;
+      n+=vis.length; visTotal+=vis.length;
+      const modOpen = !S.mods.size ? vis.length<=40 : false;
+      dHtml+=`<div class="module ${modOpen?"open":""}" id="mod-${esc(m.code)}-${esc(m.tag)}">
+        <div class="mod-head" data-file="${esc(m.code)}">
+          ${SVG_CARET}
+          <span class="mod-code">${esc(m.code)}</span>
+          <span class="mod-file">${esc(m.name)}</span>
+          <span class="mod-count">${vis.length} 个接口${m.qa?` · <span class="qa">QA ${vis.filter(o=>o.qa).length}</span>`:""}</span>
+        </div>
+        <div class="mod-body">
+          <table><thead><tr>
+            <th style="width:110px">编号</th><th style="width:76px">方法</th>
+            <th>路径与说明</th><th style="width:110px">状态码</th>
+            <th style="width:64px">覆盖</th>
+          </tr></thead><tbody>${vis.map(opRow).join("")}</tbody></table>
+        </div>
+      </div>`;
+    });
+    if(!n) return;
+    html+=`<section class="suite" id="sec-${esc(d.key)}">
+      <div class="suite-head"><h2>${esc(d.name)}</h2>
+        <span class="tag">${d.key}</span>
+        <span class="tag">${n} 个接口</span></div>
+      ${dHtml}</section>`;
+  });
+  box.innerHTML = html || '<div class="panel"><div class="empty">没有匹配的接口</div></div>';
+  document.getElementById("count-hint").textContent =
+    `显示 ${visTotal} / ${DATA.stats.ops} 个接口`;
+
+  document.querySelectorAll("#domains .case").forEach(tr=>{
+    tr.addEventListener("click",()=>{
+      const id=tr.dataset.id;
+      S.mods.has(id)?S.mods.delete(id):S.mods.add(id);
+      render();
+    });
+  });
+  document.querySelectorAll("#domains .mod-head").forEach(h=>{
+    h.addEventListener("click",()=>{
+      h.parentElement.classList.toggle("open");
+      save();
+    });
+  });
+}
+
+/* ---------- 侧边导航 ---------- */
+(function nav(){
+  let html='<div class="nav-title">章节</div>'+
+    '<a href="#sec-overview"><span>通用约定</span></a>';
+  DATA.domains.forEach(d=>{
+    if(!d.modules.length) return;
+    html+=`<a href="#sec-${esc(d.key)}"><span>${esc(d.name)}</span><span class="n">${d.n}</span></a>`;
+  });
+  document.getElementById("sidenav").innerHTML=html;
+})();
+
+render();
+</script>
+</body>
+</html>
